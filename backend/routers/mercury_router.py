@@ -63,12 +63,15 @@ def search_product_requests(item: str) -> List[Dict[str, str]]:
     session = get_mercury_session() # Obtém uma sessão autenticada.
     # URL de pesquisa de produtos no portal.
     url_pesquisa = f"https://portal.mercurymarine.com.br/epdv/epdv002d2.asp?s_nr_pedido_web=11111111111111111&s_nr_tabpre=&s_fm_cod_com=null&s_desc_item={item}"
+    print(f"Searching product with URL: {url_pesquisa}") # Log URL
     response = session.get(url_pesquisa) # Realiza a requisição GET.
+    print(f"Product search response status: {response.status_code}") # Log status
     
     soup = BeautifulSoup(response.content, "html.parser") # Analisa o HTML da resposta.
     
     # Verifica se a página indica "Nenhum Registro Encontrado".
     if soup.select_one(".NoRecords"):
+        print(f"Mercury search returned 'NoRecords' for item: {item}")
         return [] # Retorna lista vazia se nenhum produto for encontrado.
 
     # Encontra o formulário principal de preços de itens.
@@ -218,8 +221,8 @@ async def get_engine_warranty(serial: str):
         if result:
             return {"status": "success", "data": result}
         else:
-            # Se a busca não encontrar o motor, retorna status "not_found".
-            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Motor não encontrado na Mercury ou sem informações de garantia")
+            # Se a busca não encontrar o motor, retorna status "not_found" com mensagem clara.
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f"Motor com serial '{serial}' não encontrado na base de dados da Mercury.")
     except HTTPException: # Re-raise HTTPException se já for um erro HTTP.
         raise
     except Exception as e:
