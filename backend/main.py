@@ -67,7 +67,11 @@ frontend_dist = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__f
 # Verifica se a pasta 'dist' do frontend existe.
 if os.path.exists(frontend_dist):
     # Monta a pasta 'assets' do frontend para servir arquivos estáticos como CSS, JS, imagens.
-    app.mount("/assets", StaticFiles(directory=os.path.join(frontend_dist, "assets")), name="assets")
+    assets_path = os.path.join(frontend_dist, "assets")
+    if os.path.exists(assets_path):
+        app.mount("/assets", StaticFiles(directory=assets_path), name="assets")
+    else:
+        print(f"Aviso: Pasta de assets não encontrada em {assets_path}. O frontend pode não carregar corretamente.")
 
     # Rota curinga para servir o aplicativo SPA (Single Page Application) do frontend.
     @app.get("/{full_path:path}")
