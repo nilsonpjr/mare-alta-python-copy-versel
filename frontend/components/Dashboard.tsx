@@ -10,9 +10,9 @@ interface DashboardProps {
 }
 
 export const Dashboard: React.FC<DashboardProps> = ({ setView }) => {
-  // Busca dados do armazenamento local
-  const orders = StorageService.getOrders();
-  const inventory = StorageService.getInventory();
+  // Busca dados do armazenamento local com fallback para array vazio
+  const orders = StorageService.getOrders() || [];
+  const inventory = StorageService.getInventory() || [];
 
   // useMemo: Memoriza cálculos pesados para não refazer a cada renderização, a menos que 'orders' ou 'inventory' mudem
   const kpi = useMemo(() => {
