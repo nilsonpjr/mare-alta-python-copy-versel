@@ -20,12 +20,9 @@ export const UsersView: React.FC = () => {
     
     let updatedUsers = [...users];
     
-    // Ensure clientId is undefined if empty string
-    const finalClientId = editingUser.clientId === '' ? undefined : editingUser.clientId;
-
     if (editingUser.id) {
       updatedUsers = updatedUsers.map(u => 
-        u.id === editingUser.id ? { ...u, ...editingUser, clientId: finalClientId } as User : u
+        u.id === editingUser.id ? { ...u, ...editingUser } as User : u
       );
     } else {
       const newUser: User = {
@@ -34,7 +31,7 @@ export const UsersView: React.FC = () => {
         email: editingUser.email,
         password: editingUser.password,
         role: editingUser.role,
-        clientId: finalClientId
+        clientId: editingUser.clientId
       };
       updatedUsers.push(newUser);
     }

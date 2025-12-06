@@ -1,706 +1,738 @@
-import React, { useState, useEffect } from 'react';
-import { Part, StockMovement, Invoice, InvoiceItem, PartCreate, PartUpdate, StockMovementCreate } from '../types';
-import { ApiService } from '../services/api';
-import {
-    Package, Search, Plus, Filter, ArrowUpRight, ArrowDownLeft,
-    AlertTriangle, History, Barcode, FileText, CheckCircle, X,
-    Printer, ShoppingCart, Camera, Upload
+import React, { useState, useEffect, useRef } from 'react';
+import { Part, Invoice, InvoiceItem, StockMovement } from '../types';
+import { StorageService } from '../services/storage';
+import { 
+  Plus, Search, AlertTriangle, ShoppingCart, UploadCloud, FileText, 
+  Barcode, CheckCircle, Package, History, ArrowRight, Printer, Camera, X
 } from 'lucide-react';
-import { ScannerModal } from './ScannerModal';
+
+// Declaration for the external library loaded via script tag/importmap
+declare const Html5QrcodeScanner: any;
 
 export const InventoryView: React.FC = () => {
-    // --- ESTADOS ---
-    const [parts, setParts] = useState<Part[]>([]);
-    const [movements, setMovements] = useState<StockMovement[]>([]);
-    const [activeTab, setActiveTab] = useState('overview'); // overview, invoice, count, kardex
-    const [isLoading, setIsLoading] = useState(true);
-    const [searchTerm, setSearchTerm] = useState('');
+  const [parts, setParts] = useState<Part[]>([]);
+  const [movements, setMovements] = useState<StockMovement[]>([]);
+  const [invoices, setInvoices] = useState<Invoice[]>([]);
+  
+  // Tabs: 'overview', 'entry', 'count', 'kardex'
+  const [activeTab, setActiveTab] = useState('overview');
 
-    // Estados para Modais e Ações
-    const [isPartModalOpen, setIsPartModalOpen] = useState(false);
-    const [newPart, setNewPart] = useState<Partial<Part>>({});
-    const [isPurchaseModalOpen, setIsPurchaseModalOpen] = useState(false);
-    const [isCameraOpen, setIsCameraOpen] = useState(false);
+  // Search & Filter
+  const [searchTerm, setSearchTerm] = useState('');
+  
+  // Modals
+  const [isPartModalOpen, setIsPartModalOpen] = useState(false);
+  const [isPurchaseModalOpen, setIsPurchaseModalOpen] = useState(false);
+  const [isCameraOpen, setIsCameraOpen] = useState(false);
 
-    // Estados para Nota Fiscal (Invoice)
-    const [invoiceXml, setInvoiceXml] = useState<string | null>(null);
-    const [currentInvoice, setCurrentInvoice] = useState<Partial<Invoice>>({ items: [] });
-    const [isProcessingInvoice, setIsProcessingInvoice] = useState(false);
+  // Forms Data
+  const [newPart, setNewPart] = useState<Partial<Part>>({});
+  
+  // Invoice Entry State
+  const [invoiceForm, setInvoiceForm] = useState<Partial<Invoice>>({ items: [] });
 
-    // Estados para Contagem de Inventário
-    const [inventoryCount, setInventoryCount] = useState<{ partId: string, counted: number, system: number }[]>([]);
-    const [isCounting, setIsCounting] = useState(false);
+  // Inventory Count State
+  const [inventoryCounts, setInventoryCounts] = useState<Record<string, number>>({});
 
-    // --- CARREGAMENTO INICIAL ---
-    useEffect(() => {
-        loadData();
-    }, []);
+  useEffect(() => {
+    loadData();
+  }, []);
 
-    const loadData = async () => {
-        setIsLoading(true);
-        try {
-            const [partsData, movementsData] = await Promise.all([
-                ApiService.getParts(),
-                ApiService.getMovements()
-            ]);
-            setParts(partsData);
-            setMovements(movementsData);
-        } catch (error) {
-            console.error("Erro ao carregar estoque:", error);
-            alert("Erro ao carregar dados do estoque.");
-        } finally {
-            setIsLoading(false);
-        }
-    };
+  // Initialize Scanner when modal opens
+  useEffect(() => {
+    let scanner: any = null;
 
-    const [mercurySearchTerm, setMercurySearchTerm] = useState('');
-
-    const handleSearchMercury = async () => {
-        if (!mercurySearchTerm) {
-            alert('Digite um código para buscar na Mercury');
-            return;
-        }
-
-        try {
-            const result = await ApiService.searchMercuryProduct(mercurySearchTerm);
-            if (result.status === 'success' && result.results.length > 0) {
-                const mercuryItem = result.results[0];
-                setNewPart({
-                    ...newPart,
-                    sku: mercuryItem.codigo,
-                    name: mercuryItem.descricao,
-                    price: parseFloat(mercuryItem.valorVenda.replace('R$', '').replace('.', '').replace(',', '.').trim()) || 0,
-                    cost: parseFloat(mercuryItem.valorCusto.replace('R$', '').replace('.', '').replace(',', '.').trim()) || 0
-                });
-                alert(`Produto encontrado: ${mercuryItem.descricao}`);
-            } else {
-                alert('Nenhum produto encontrado na Mercury com esse código');
+    if (isCameraOpen && typeof Html5QrcodeScanner !== 'undefined') {
+        scanner = new Html5QrcodeScanner(
+            "reader", 
+            { fps: 10, qrbox: { width: 250, height: 250 } },
+            /* verbose= */ false
+        );
+        
+        scanner.render(
+            (decodedText: string) => {
+                setSearchTerm(decodedText);
+                setIsCameraOpen(false);
+                scanner.clear();
+            }, 
+            (error: any) => {
+                // Ignore errors during scanning
             }
-        } catch (error) {
-            alert('Erro ao buscar produto na Mercury');
-            console.error(error);
-        }
-    };
-
-    // --- LEITOR DE CÓDIGO DE BARRAS ---
-    const handleScan = (decodedText: string) => {
-        setSearchTerm(decodedText);
-        setIsCameraOpen(false);
-        // Tenta encontrar o produto
-        const part = parts.find(p => p.barcode === decodedText || p.sku === decodedText);
-        if (part) {
-            // Se estiver no modo de contagem, incrementa
-            if (isCounting) {
-                handleCountItem(part.id.toString());
-            } else {
-                // Se não, abre modal de edição
-                handleEditPart(part);
-            }
-        } else {
-            if (confirm(`Produto não encontrado: ${decodedText}. Deseja cadastrar?`)) {
-                setNewPart({ barcode: decodedText });
-                setIsPartModalOpen(true);
-            }
-        }
-    };
-
-    // --- AÇÕES DE PRODUTO ---
-    const handleEditPart = (part: Part) => {
-        setNewPart({ ...part });
-        setIsPartModalOpen(true);
-    };
-
-    const handleSavePart = async () => {
-        if (!newPart.name || !newPart.sku) {
-            alert("Nome e SKU são obrigatórios.");
-            return;
-        }
-
-        try {
-            if (newPart.id) {
-                // Edição
-                const updateData: PartUpdate = {
-                    name: newPart.name,
-                    sku: newPart.sku,
-                    barcode: newPart.barcode,
-                    cost: newPart.cost,
-                    price: newPart.price,
-                    minStock: newPart.minStock,
-                    location: newPart.location
-                };
-                await ApiService.updatePart(Number(newPart.id), updateData);
-            } else {
-                // Criação
-                const createData: PartCreate = {
-                    name: newPart.name!,
-                    sku: newPart.sku!,
-                    barcode: newPart.barcode,
-                    quantity: newPart.quantity || 0,
-                    cost: newPart.cost || 0,
-                    price: newPart.price || 0,
-                    minStock: newPart.minStock || 0,
-                    location: newPart.location
-                };
-                await ApiService.createPart(createData);
-            }
-            await loadData();
-            setIsPartModalOpen(false);
-            setNewPart({});
-        } catch (error) {
-            console.error("Erro ao salvar produto:", error);
-            alert("Erro ao salvar produto. Verifique se o SKU já existe.");
-        }
-    };
-
-    // --- IMPORTAÇÃO DE XML (NFe) ---
-    const handleXmlUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
-        const file = event.target.files?.[0];
-        if (!file) return;
-
-        const reader = new FileReader();
-        reader.onload = (e) => {
-            const text = e.target?.result as string;
-            setInvoiceXml(text);
-            parseNfe(text);
-        };
-        reader.readAsText(file);
-    };
-
-    const parseNfe = (xml: string) => {
-        // Simulação de parser XML (na vida real usaria uma lib como fast-xml-parser)
-        // Aqui vamos extrair dados fictícios ou usar regex simples para demonstração
-        const mockItems: InvoiceItem[] = [
-            { sku: 'OLEO-25W40', name: 'Óleo Mercury 25W40', quantity: 12, unitCost: 45.00, total: 540.00 },
-            { sku: 'FILTRO-OLEO', name: 'Filtro de Óleo Verado', quantity: 6, unitCost: 60.00, total: 360.00 }
-        ];
-
-        setCurrentInvoice({
-            number: '12345',
-            supplier: 'Mercury Marine do Brasil',
-            date: new Date().toISOString(),
-            items: mockItems,
-            totalValue: 900.00
-        });
-    };
-
-    const handleInvoiceSubmit = async () => {
-        setIsProcessingInvoice(true);
-        try {
-            // Para cada item da nota, atualiza o estoque
-            for (const item of currentInvoice.items || []) {
-                // Tenta achar o produto pelo SKU
-                let part = parts.find(p => p.sku === item.sku);
-
-                if (part) {
-                    // Atualiza quantidade e custo
-                    // O backend não tem endpoint específico para "entrada de nota" que atualize o custo automaticamente
-                    // Então vamos fazer um update manual e criar um movimento
-
-                    // 1. Cria movimento de entrada
-                    await ApiService.createMovement({
-                        partId: Number(part.id),
-                        type: 'IN_INVOICE',
-                        quantity: item.quantity,
-                        description: `NF ${currentInvoice.number} - ${currentInvoice.supplier}`,
-                        referenceId: currentInvoice.number,
-                        user: 'Admin' // Pegar do contexto de usuário se possível
-                    });
-
-                    // 2. Atualiza custo e preço (opcional, regra de negócio)
-                    // Vamos atualizar apenas o custo médio se necessário, mas aqui vamos simplificar
-                    await ApiService.updatePart(Number(part.id), {
-                        cost: item.unitCost,
-                        // Atualiza quantidade somando
-                        quantity: part.quantity + item.quantity
-                    });
-
-                } else {
-                    // Produto novo, cria
-                    const newPartData: PartCreate = {
-                        sku: item.sku,
-                        name: item.name,
-                        quantity: item.quantity,
-                        cost: item.unitCost,
-                        price: item.unitCost * 1.5, // Margem padrão de 50%
-                        minStock: 5
-                    };
-                    const createdPart = await ApiService.createPart(newPartData);
-
-                    // Cria movimento inicial
-                    await ApiService.createMovement({
-                        partId: Number(createdPart.id),
-                        type: 'IN_INVOICE',
-                        quantity: item.quantity,
-                        description: `NF ${currentInvoice.number} - ${currentInvoice.supplier} (Cadastro Inicial)`,
-                        referenceId: currentInvoice.number,
-                        user: 'Admin'
-                    });
-                }
-            }
-
-            alert("Nota Fiscal processada com sucesso!");
-            setCurrentInvoice({ items: [] });
-            setInvoiceXml(null);
-            await loadData();
-            setActiveTab('overview');
-        } catch (error) {
-            console.error("Erro ao processar nota:", error);
-            alert("Erro ao processar nota fiscal.");
-        } finally {
-            setIsProcessingInvoice(false);
-        }
-    };
-
-    // --- CONTAGEM DE INVENTÁRIO ---
-    const startInventory = () => {
-        setInventoryCount(parts.map(p => ({ partId: p.id, counted: 0, system: p.quantity })));
-        setIsCounting(true);
-        setActiveTab('count');
-    };
-
-    const handleCountItem = (partId: string, qty: number = 1) => {
-        setInventoryCount(prev => prev.map(item =>
-            item.partId === partId ? { ...item, counted: item.counted + qty } : item
-        ));
-    };
-
-    const handleInventoryFinish = async () => {
-        if (!confirm("Deseja finalizar a contagem e ajustar o estoque?")) return;
-
-        try {
-            for (const item of inventoryCount) {
-                const diff = item.counted - item.system;
-                if (diff !== 0) {
-                    await ApiService.createMovement({
-                        partId: Number(item.partId),
-                        type: diff > 0 ? 'ADJUSTMENT_PLUS' : 'ADJUSTMENT_MINUS',
-                        quantity: Math.abs(diff),
-                        description: 'Ajuste de Inventário',
-                        user: 'Admin'
-                    });
-
-                    // Atualiza a quantidade na peça
-                    await ApiService.updatePart(Number(item.partId), {
-                        quantity: item.counted
-                    });
-                }
-            }
-            alert("Inventário atualizado com sucesso!");
-            setIsCounting(false);
-            await loadData();
-            setActiveTab('overview');
-        } catch (error) {
-            console.error("Erro ao finalizar inventário:", error);
-            alert("Erro ao finalizar inventário.");
-        }
-    };
-
-    // --- RENDERIZAÇÃO ---
-
-    // Filtros
-    const filteredParts = parts.filter(p =>
-        p.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        p.sku.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        p.barcode?.includes(searchTerm)
-    );
-
-    const lowStockItems = parts.filter(p => p.quantity <= p.minStock);
-
-    if (isLoading) {
-        return (
-            <div className="flex items-center justify-center h-full">
-                <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-cyan-600"></div>
-            </div>
         );
     }
 
-    return (
-        <div className="p-8 h-full flex flex-col">
-            <div className="flex justify-between items-center mb-6">
-                <div>
-                    <h2 className="text-2xl font-bold text-slate-800 flex items-center gap-2">
-                        <Package className="w-6 h-6 text-cyan-600" /> Gestão de Estoque
-                    </h2>
-                </div>
-                <div className="flex gap-3">
-                    <button onClick={() => setIsPurchaseModalOpen(true)} className="bg-white border border-slate-200 text-slate-600 px-4 py-2 rounded-lg flex items-center gap-2 shadow-sm hover:bg-slate-50 relative">
-                        <ShoppingCart className="w-4 h-4" /> Compras
-                        {lowStockItems.length > 0 && (
-                            <span className="absolute -top-2 -right-2 bg-red-500 text-white text-xs font-bold w-5 h-5 rounded-full flex items-center justify-center">
-                                {lowStockItems.length}
-                            </span>
-                        )}
-                    </button>
-                    <button onClick={() => { setNewPart({}); setIsPartModalOpen(true); }} className="bg-cyan-600 hover:bg-cyan-700 text-white px-4 py-2 rounded-lg flex items-center gap-2 shadow-sm font-medium">
-                        <Plus className="w-4 h-4" /> Novo Produto
-                    </button>
-                </div>
-            </div>
+    return () => {
+        if (scanner) {
+            try { scanner.clear(); } catch(e) { /* ignore cleanup errors */ }
+        }
+    };
+  }, [isCameraOpen]);
 
-            {/* Tabs */}
-            <div className="flex gap-1 border-b border-slate-200 mb-6">
-                <button onClick={() => setActiveTab('overview')} className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors ${activeTab === 'overview' ? 'border-cyan-600 text-cyan-600' : 'border-transparent text-slate-500 hover:text-slate-700'}`}>Visão Geral</button>
-                <button onClick={() => setActiveTab('invoice')} className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors ${activeTab === 'invoice' ? 'border-cyan-600 text-cyan-600' : 'border-transparent text-slate-500 hover:text-slate-700'}`}>Entrada NFe</button>
-                <button onClick={() => setActiveTab('count')} className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors ${activeTab === 'count' ? 'border-cyan-600 text-cyan-600' : 'border-transparent text-slate-500 hover:text-slate-700'}`}>Inventário</button>
-                <button onClick={() => setActiveTab('kardex')} className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors ${activeTab === 'kardex' ? 'border-cyan-600 text-cyan-600' : 'border-transparent text-slate-500 hover:text-slate-700'}`}>Kardex</button>
-            </div>
+  const loadData = () => {
+    setParts(StorageService.getInventory());
+    setMovements(StorageService.getMovements());
+    setInvoices(StorageService.getInvoices());
+  };
 
-            {/* Content */}
-            <div className="flex-1 overflow-hidden flex flex-col">
+  // --- XML PARSER LOGIC ---
+  const handleXmlUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
 
-                {/* OVERVIEW TAB */}
-                {activeTab === 'overview' && (
-                    <div className="flex flex-col h-full">
-                        <div className="flex gap-4 mb-4">
-                            <div className="relative flex-1">
-                                <Search className="absolute left-3 top-3 w-4 h-4 text-slate-400" />
-                                <input
-                                    type="text"
-                                    placeholder="Buscar produto..."
-                                    className="w-full pl-10 pr-4 py-2 rounded-lg border border-slate-200"
-                                    value={searchTerm}
-                                    onChange={(e) => setSearchTerm(e.target.value)}
-                                />
-                            </div>
-                            <button onClick={() => setIsCameraOpen(true)} className="p-2 bg-slate-100 rounded-lg text-slate-600 hover:bg-slate-200">
-                                <Camera className="w-5 h-5" />
-                            </button>
-                        </div>
+    const reader = new FileReader();
+    reader.onload = (e) => {
+        const text = e.target?.result as string;
+        try {
+            const parser = new DOMParser();
+            const xmlDoc = parser.parseFromString(text, "text/xml");
+            
+            // Extract NFe Data (Basic extraction based on standard NFe layout)
+            const number = xmlDoc.getElementsByTagName('nNF')[0]?.textContent || '';
+            const supplier = xmlDoc.getElementsByTagName('xNome')[0]?.textContent || '';
+            const date = xmlDoc.getElementsByTagName('dhEmi')[0]?.textContent?.split('T')[0] || new Date().toISOString().split('T')[0];
+            
+            // Extract Items
+            const detNodes = xmlDoc.getElementsByTagName('det');
+            const items: InvoiceItem[] = [];
+            
+            for (let i = 0; i < detNodes.length; i++) {
+                const prod = detNodes[i].getElementsByTagName('prod')[0];
+                const sku = prod.getElementsByTagName('cProd')[0]?.textContent || '';
+                const name = prod.getElementsByTagName('xProd')[0]?.textContent || '';
+                const qCom = parseFloat(prod.getElementsByTagName('qCom')[0]?.textContent || '0');
+                const vUnCom = parseFloat(prod.getElementsByTagName('vUnCom')[0]?.textContent || '0');
+                
+                // Try to find matching part in system
+                const existingPart = parts.find(p => p.sku === sku || p.barcode === sku);
 
-                        <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden flex-1 overflow-y-auto">
-                            <table className="w-full text-left text-sm">
-                                <thead className="bg-slate-50 text-slate-600 uppercase text-xs font-semibold sticky top-0 z-10">
-                                    <tr>
-                                        <th className="px-6 py-4">SKU</th>
-                                        <th className="px-6 py-4">Produto</th>
-                                        <th className="px-6 py-4 text-center">Estoque</th>
-                                        <th className="px-6 py-4 text-right">Custo</th>
-                                        <th className="px-6 py-4 text-right">Venda</th>
-                                        <th className="px-6 py-4 text-center">Status</th>
-                                    </tr>
-                                </thead>
-                                <tbody className="divide-y divide-slate-100">
-                                    {filteredParts.map((part) => (
-                                        <tr key={part.id} onClick={() => handleEditPart(part)} className="hover:bg-cyan-50 cursor-pointer transition-colors">
-                                            <td className="px-6 py-4 font-mono text-slate-500">{part.sku}</td>
-                                            <td className="px-6 py-4 font-bold text-slate-800">{part.name}</td>
-                                            <td className="px-6 py-4 text-center font-bold">{part.quantity}</td>
-                                            <td className="px-6 py-4 text-right text-slate-500">R$ {part.cost.toFixed(2)}</td>
-                                            <td className="px-6 py-4 text-right font-bold text-slate-700">R$ {part.price.toFixed(2)}</td>
-                                            <td className="px-6 py-4 text-center">
-                                                {part.quantity <= part.minStock ? (
-                                                    <span className="px-2 py-1 bg-red-100 text-red-700 rounded-full text-xs font-bold">Baixo</span>
-                                                ) : (
-                                                    <span className="px-2 py-1 bg-emerald-100 text-emerald-700 rounded-full text-xs font-bold">OK</span>
-                                                )}
-                                            </td>
-                                        </tr>
-                                    ))}
-                                </tbody>
-                            </table>
-                        </div>
-                    </div>
-                )}
+                items.push({
+                    sku,
+                    name,
+                    quantity: qCom,
+                    unitCost: vUnCom,
+                    total: qCom * vUnCom,
+                    partId: existingPart ? existingPart.id : undefined // Link if found
+                });
+            }
 
-                {/* INVOICE TAB */}
-                {activeTab === 'invoice' && (
-                    <div className="h-full overflow-y-auto">
-                        {!currentInvoice.items?.length ? (
-                            <div className="bg-white border-2 border-dashed border-slate-300 rounded-xl p-12 text-center">
-                                <Upload className="w-16 h-16 text-slate-300 mx-auto mb-4" />
-                                <h3 className="text-xl font-bold text-slate-700 mb-2">Importar Nota Fiscal (XML)</h3>
-                                <p className="text-slate-500 mb-6">Arraste o arquivo XML ou clique para selecionar</p>
-                                <label className="bg-cyan-600 hover:bg-cyan-700 text-white px-6 py-3 rounded-lg font-bold cursor-pointer transition-colors inline-block">
-                                    Selecionar Arquivo
-                                    <input type="file" accept=".xml" className="hidden" onChange={handleXmlUpload} />
-                                </label>
-                            </div>
-                        ) : (
-                            <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-6">
-                                <div className="flex justify-between items-start mb-6 border-b pb-4">
-                                    <div>
-                                        <h3 className="text-lg font-bold text-slate-800">NF-e {currentInvoice.number}</h3>
-                                        <p className="text-slate-500">{currentInvoice.supplier}</p>
-                                    </div>
-                                    <div className="text-right">
-                                        <p className="text-sm text-slate-500">Valor Total</p>
-                                        <p className="text-2xl font-bold text-cyan-700">R$ {currentInvoice.totalValue?.toFixed(2)}</p>
-                                    </div>
-                                </div>
+            const totalValue = items.reduce((acc, curr) => acc + curr.total, 0);
 
-                                <table className="w-full text-left text-sm mb-6">
-                                    <thead className="bg-slate-50">
-                                        <tr>
-                                            <th className="p-3">SKU</th>
-                                            <th className="p-3">Produto</th>
-                                            <th className="p-3 text-center">Qtd</th>
-                                            <th className="p-3 text-right">Unitário</th>
-                                            <th className="p-3 text-right">Total</th>
-                                            <th className="p-3 text-center">Ação</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody className="divide-y">
-                                        {currentInvoice.items.map((item, idx) => {
-                                            const exists = parts.some(p => p.sku === item.sku);
-                                            return (
-                                                <tr key={idx}>
-                                                    <td className="p-3 font-mono">{item.sku}</td>
-                                                    <td className="p-3">{item.name}</td>
-                                                    <td className="p-3 text-center">{item.quantity}</td>
-                                                    <td className="p-3 text-right">R$ {item.unitCost.toFixed(2)}</td>
-                                                    <td className="p-3 text-right font-bold">R$ {item.total.toFixed(2)}</td>
-                                                    <td className="p-3 text-center">
-                                                        {exists ? (
-                                                            <span className="text-emerald-600 text-xs font-bold flex items-center justify-center gap-1"><CheckCircle className="w-3 h-3" /> Atualizar</span>
-                                                        ) : (
-                                                            <span className="text-blue-600 text-xs font-bold flex items-center justify-center gap-1"><Plus className="w-3 h-3" /> Cadastrar</span>
-                                                        )}
-                                                    </td>
-                                                </tr>
-                                            );
-                                        })}
-                                    </tbody>
-                                </table>
+            setInvoiceForm({
+                number,
+                supplier,
+                date,
+                items,
+                totalValue,
+                xmlKey: 'IMPORTED_FROM_XML'
+            });
+            
+            alert(`XML Importado com sucesso! ${items.length} itens encontrados. Verifique a associação dos produtos.`);
 
-                                <div className="flex justify-end gap-3">
-                                    <button onClick={() => setCurrentInvoice({ items: [] })} className="px-4 py-2 text-slate-600 hover:bg-slate-100 rounded-lg">Cancelar</button>
-                                    <button onClick={handleInvoiceSubmit} disabled={isProcessingInvoice} className="px-6 py-2 bg-cyan-600 text-white rounded-lg hover:bg-cyan-700 font-bold shadow-lg shadow-cyan-200">
-                                        {isProcessingInvoice ? 'Processando...' : 'Processar Entrada'}
-                                    </button>
-                                </div>
-                            </div>
-                        )}
-                    </div>
-                )}
+        } catch (error) {
+            alert("Erro ao ler XML. Verifique se é uma NFe válida.");
+            console.error(error);
+        }
+    };
+    reader.readAsText(file);
+  };
 
-                {/* COUNT TAB */}
-                {activeTab === 'count' && (
-                    <div className="h-full flex flex-col">
-                        {!isCounting ? (
-                            <div className="flex-1 flex items-center justify-center flex-col text-center">
-                                <div className="bg-cyan-50 p-6 rounded-full mb-6">
-                                    <Barcode className="w-16 h-16 text-cyan-600" />
-                                </div>
-                                <h3 className="text-2xl font-bold text-slate-800 mb-2">Iniciar Inventário</h3>
-                                <p className="text-slate-500 max-w-md mb-8">O modo de inventário permite conferir o estoque físico. As diferenças serão ajustadas automaticamente ao finalizar.</p>
-                                <button onClick={startInventory} className="bg-cyan-600 hover:bg-cyan-700 text-white px-8 py-4 rounded-xl font-bold text-lg shadow-lg shadow-cyan-200 transition-transform hover:scale-105">
-                                    Começar Contagem
-                                </button>
-                            </div>
-                        ) : (
-                            <div className="flex flex-col h-full">
-                                <div className="flex justify-between items-center mb-4 bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
-                                    <div>
-                                        <h3 className="font-bold text-slate-800">Contagem em Andamento</h3>
-                                        <p className="text-sm text-slate-500">{inventoryCount.filter(i => i.counted > 0).length} itens contados de {inventoryCount.length}</p>
-                                    </div>
-                                    <div className="flex gap-3">
-                                        <button onClick={() => setIsCameraOpen(true)} className="bg-slate-100 hover:bg-slate-200 text-slate-700 px-4 py-2 rounded-lg flex items-center gap-2 font-medium">
-                                            <Camera className="w-4 h-4" /> Ler Código
-                                        </button>
-                                        <button onClick={handleInventoryFinish} className="bg-emerald-600 hover:bg-emerald-700 text-white px-6 py-2 rounded-lg font-bold shadow-md">
-                                            Finalizar
-                                        </button>
-                                    </div>
-                                </div>
+  const handleInvoiceSubmit = () => {
+      if (!invoiceForm.number || !invoiceForm.supplier || !invoiceForm.items?.length) {
+          alert("Preencha os dados obrigatórios da nota.");
+          return;
+      }
 
-                                <div className="bg-white rounded-xl shadow-sm border border-slate-200 flex-1 overflow-y-auto">
-                                    <table className="w-full text-left text-sm">
-                                        <thead className="bg-slate-50 sticky top-0">
-                                            <tr>
-                                                <th className="p-3">Produto</th>
-                                                <th className="p-3 text-center">Sistema</th>
-                                                <th className="p-3 text-center">Contagem</th>
-                                                <th className="p-3 text-center">Diferença</th>
-                                                <th className="p-3 text-center">Ação</th>
-                                            </tr>
-                                        </thead>
-                                        <tbody className="divide-y">
-                                            {inventoryCount.map(item => {
-                                                const part = parts.find(p => p.id === item.partId);
-                                                const diff = item.counted - item.system;
-                                                return (
-                                                    <tr key={item.partId} className={item.counted > 0 ? 'bg-cyan-50/30' : ''}>
-                                                        <td className="p-3 font-medium">{part?.name}</td>
-                                                        <td className="p-3 text-center text-slate-500">{item.system}</td>
-                                                        <td className="p-3 text-center font-bold text-lg">{item.counted}</td>
-                                                        <td className={`p-3 text-center font-bold ${diff === 0 ? 'text-slate-300' : diff > 0 ? 'text-emerald-600' : 'text-red-600'}`}>
-                                                            {diff > 0 ? `+${diff}` : diff}
-                                                        </td>
-                                                        <td className="p-3 text-center">
-                                                            <div className="flex items-center justify-center gap-2">
-                                                                <button onClick={() => handleCountItem(item.partId, -1)} className="w-8 h-8 rounded-full bg-slate-100 hover:bg-slate-200 flex items-center justify-center font-bold">-</button>
-                                                                <button onClick={() => handleCountItem(item.partId, 1)} className="w-8 h-8 rounded-full bg-cyan-100 hover:bg-cyan-200 text-cyan-700 flex items-center justify-center font-bold">+</button>
-                                                            </div>
-                                                        </td>
-                                                    </tr>
-                                                );
-                                            })}
-                                        </tbody>
-                                    </table>
-                                </div>
-                            </div>
-                        )}
-                    </div>
-                )}
+      // Check if all items are linked to a system part
+      const unlinkedItems = invoiceForm.items.filter(i => !i.partId);
+      if (unlinkedItems.length > 0) {
+          if (!window.confirm(`Existem ${unlinkedItems.length} itens não vinculados ao cadastro de produtos. Eles serão ignorados no estoque. Deseja continuar?`)) {
+              return;
+          }
+      }
 
-                {/* KARDEX TAB */}
-                {activeTab === 'kardex' && (
-                    <div className="bg-white rounded-xl shadow-sm border border-slate-200 flex-1 overflow-y-auto">
-                        <table className="w-full text-left text-sm">
-                            <thead className="bg-slate-50 text-slate-600 uppercase text-xs font-semibold sticky top-0">
-                                <tr>
-                                    <th className="p-4">Data</th>
-                                    <th className="p-4">Produto</th>
-                                    <th className="p-4">Tipo</th>
-                                    <th className="p-4">Descrição</th>
-                                    <th className="p-4 text-center">Qtd</th>
-                                    <th className="p-4">Usuário</th>
-                                </tr>
-                            </thead>
-                            <tbody className="divide-y divide-slate-100">
-                                {movements.map(mov => {
-                                    const part = parts.find(p => p.id === mov.partId);
+      const invoice: Invoice = {
+          id: Date.now().toString(),
+          number: invoiceForm.number,
+          supplier: invoiceForm.supplier,
+          date: invoiceForm.date || new Date().toISOString(),
+          items: invoiceForm.items,
+          totalValue: invoiceForm.items.reduce((acc, curr) => acc + curr.total, 0),
+          importedAt: new Date().toISOString()
+      };
 
-                                    return (
-                                        <tr key={mov.id}>
-                                            <td className="p-4 text-slate-500">{new Date(mov.date).toLocaleString()}</td>
-                                            <td className="p-4 font-bold text-slate-700">{part?.name || 'Desconhecido'}</td>
-                                            <td className="p-4">
-                                                <span className={`px-2 py-1 rounded-full text-xs font-bold ${mov.type.includes('IN') || mov.type.includes('PLUS') ? 'bg-emerald-100 text-emerald-700' : 'bg-red-100 text-red-700'
-                                                    }`}>
-                                                    {mov.type}
-                                                </span>
-                                            </td>
-                                            <td className="p-4 text-slate-600">{mov.description}</td>
-                                            <td className="p-4 text-center font-bold">{mov.quantity}</td>
-                                            <td className="p-4 text-slate-500 text-xs">{mov.user}</td>
-                                        </tr>
-                                    );
-                                })}
-                            </tbody>
-                        </table>
-                    </div>
-                )}
-            </div>
+      StorageService.processInvoice(invoice, 'Admin'); // Hardcoded user for now
+      loadData();
+      setInvoiceForm({ items: [] });
+      setActiveTab('overview');
+      alert("Nota fiscal processada! Estoque atualizado.");
+  };
 
-            {/* Modais */}
-            <ScannerModal
-                isOpen={isCameraOpen}
-                onClose={() => setIsCameraOpen(false)}
-                onScan={handleScan}
-            />
+  const linkItemToPart = (index: number, partId: string) => {
+      if (!invoiceForm.items) return;
+      const newItems = [...invoiceForm.items];
+      newItems[index].partId = partId;
+      setInvoiceForm({ ...invoiceForm, items: newItems });
+  };
 
-            {isPartModalOpen && (
-                <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-                    <div className="bg-white rounded-lg p-6 w-full max-w-lg shadow-xl">
-                        <h3 className="text-lg font-bold mb-4">{newPart.id ? 'Editar Produto' : 'Novo Produto'}</h3>
+  // --- PART CRUD ---
+  const handleSavePart = () => {
+    if (!newPart.name || !newPart.sku || !newPart.price) return;
+    
+    const part: Part = {
+      id: Date.now().toString(),
+      name: newPart.name,
+      sku: newPart.sku,
+      barcode: newPart.barcode,
+      quantity: newPart.quantity || 0,
+      cost: newPart.cost || 0,
+      price: newPart.price,
+      minStock: newPart.minStock || 0,
+      location: newPart.location
+    };
 
-                        {/* Mercury Search Section */}
-                        <div className="bg-blue-50 p-4 rounded-lg border border-blue-200 mb-4">
-                            <label className="block text-xs font-bold text-blue-700 mb-2 uppercase">Buscar na Mercury Marine</label>
-                            <div className="flex gap-2">
-                                <input
-                                    type="text"
-                                    placeholder="Digite o código do produto..."
-                                    className="flex-1 p-2 border border-blue-300 rounded bg-white text-sm"
-                                    value={mercurySearchTerm}
-                                    onChange={(e) => setMercurySearchTerm(e.target.value)}
-                                    onKeyPress={(e) => e.key === 'Enter' && handleSearchMercury()}
-                                />
-                                <button
-                                    onClick={handleSearchMercury}
-                                    className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded transition-colors text-sm font-medium"
-                                    title="Buscar na Mercury Marine"
-                                >
-                                    🔍 Buscar
-                                </button>
-                            </div>
-                        </div>
+    const updated = [...parts, part];
+    setParts(updated);
+    StorageService.saveInventory(updated);
+    setIsPartModalOpen(false);
+    setNewPart({});
+  };
 
-                        <div className="grid grid-cols-2 gap-4">
-                            <div className="col-span-2">
-                                <label className="block text-xs font-bold text-slate-500 mb-1">Nome do Produto</label>
-                                <input className="w-full p-2 border rounded bg-white text-slate-900" value={newPart.name || ''} onChange={e => setNewPart({ ...newPart, name: e.target.value })} />
-                            </div>
-                            <div>
-                                <label className="block text-xs font-bold text-slate-500 mb-1">Código SKU</label>
-                                <input className="w-full p-2 border rounded bg-white text-slate-900" value={newPart.sku || ''} onChange={e => setNewPart({ ...newPart, sku: e.target.value })} />
-                            </div>
-                            <div>
-                                <label className="block text-xs font-bold text-slate-500 mb-1">Código de Barras (EAN)</label>
-                                <input className="w-full p-2 border rounded bg-white text-slate-900" value={newPart.barcode || ''} onChange={e => setNewPart({ ...newPart, barcode: e.target.value })} />
-                            </div>
-                            <div>
-                                <label className="block text-xs font-bold text-slate-500 mb-1">Custo (R$)</label>
-                                <input type="number" className="w-full p-2 border rounded bg-white text-slate-900" value={newPart.cost || ''} onChange={e => setNewPart({ ...newPart, cost: Number(e.target.value) })} />
-                            </div>
-                            <div>
-                                <label className="block text-xs font-bold text-slate-500 mb-1">Preço Venda (R$)</label>
-                                <input type="number" className="w-full p-2 border rounded bg-white text-slate-900" value={newPart.price || ''} onChange={e => setNewPart({ ...newPart, price: Number(e.target.value) })} />
-                            </div>
-                            <div>
-                                <label className="block text-xs font-bold text-slate-500 mb-1">Estoque Inicial</label>
-                                <input type="number" className="w-full p-2 border rounded bg-white text-slate-900" value={newPart.quantity || ''} onChange={e => setNewPart({ ...newPart, quantity: Number(e.target.value) })} disabled={!!newPart.id} />
-                            </div>
-                            <div>
-                                <label className="block text-xs font-bold text-slate-500 mb-1">Estoque Mínimo</label>
-                                <input type="number" className="w-full p-2 border rounded bg-white text-slate-900" value={newPart.minStock || ''} onChange={e => setNewPart({ ...newPart, minStock: Number(e.target.value) })} />
-                            </div>
-                            <div className="col-span-2">
-                                <label className="block text-xs font-bold text-slate-500 mb-1">Localização (Prateleira)</label>
-                                <input className="w-full p-2 border rounded bg-white text-slate-900" value={newPart.location || ''} onChange={e => setNewPart({ ...newPart, location: e.target.value })} />
-                            </div>
-                        </div>
-                        <div className="mt-6 flex justify-end gap-3">
-                            <button onClick={() => setIsPartModalOpen(false)} className="px-4 py-2 text-slate-600 border rounded hover:bg-slate-50">Cancelar</button>
-                            <button onClick={handleSavePart} className="px-4 py-2 bg-cyan-600 text-white rounded hover:bg-cyan-700 font-bold">Salvar Item</button>
-                        </div>
-                    </div>
-                </div>
-            )}
+  // --- INVENTORY COUNT LOGIC ---
+  const handleInventoryFinish = () => {
+      const adjustments: StockMovement[] = [];
+      const updatedParts = [...parts];
 
-            {isPurchaseModalOpen && (
-                <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-                    <div className="bg-white rounded-lg p-6 w-full max-w-2xl shadow-xl max-h-[80vh] overflow-y-auto">
-                        <h3 className="text-lg font-bold mb-4 flex items-center gap-2">
-                            <ShoppingCart className="w-5 h-5 text-amber-600" /> Lista de Compras Sugerida
-                        </h3>
-                        <p className="text-sm text-slate-500 mb-4">Itens abaixo do estoque mínimo.</p>
+      updatedParts.forEach(part => {
+          const counted = inventoryCounts[part.id];
+          if (counted !== undefined && counted !== part.quantity) {
+              const diff = counted - part.quantity;
+              part.quantity = counted; // Update Stock
 
-                        <table className="w-full text-left text-sm mb-6">
-                            <thead className="bg-slate-50">
-                                <tr>
-                                    <th className="p-2">Produto</th>
-                                    <th className="p-2 text-center">Atual</th>
-                                    <th className="p-2 text-center">Mínimo</th>
-                                    <th className="p-2 text-center">Sugestão Compra</th>
-                                </tr>
-                            </thead>
-                            <tbody className="divide-y">
-                                {lowStockItems.length === 0 && <tr><td colSpan={4} className="p-4 text-center text-slate-400">Estoque saudável. Nada a comprar.</td></tr>}
-                                {lowStockItems.map(p => (
-                                    <tr key={p.id}>
-                                        <td className="p-2 font-medium">{p.name}</td>
-                                        <td className="p-2 text-center text-red-600 font-bold">{p.quantity}</td>
-                                        <td className="p-2 text-center">{p.minStock}</td>
-                                        <td className="p-2 text-center font-bold">{(p.minStock - p.quantity) + 5}</td>
-                                    </tr>
-                                ))}
-                            </tbody>
-                        </table>
+              adjustments.push({
+                  id: Date.now().toString() + Math.random(),
+                  partId: part.id,
+                  type: diff > 0 ? 'ADJUSTMENT_PLUS' : 'ADJUSTMENT_MINUS',
+                  quantity: Math.abs(diff),
+                  date: new Date().toISOString(),
+                  description: 'Ajuste de Inventário Físico',
+                  user: 'Admin'
+              });
+          }
+      });
 
-                        <div className="flex justify-end gap-3">
-                            <button onClick={() => window.print()} className="px-4 py-2 bg-slate-100 text-slate-700 rounded hover:bg-slate-200 flex items-center gap-2">
-                                <Printer className="w-4 h-4" /> Imprimir Lista
-                            </button>
-                            <button onClick={() => setIsPurchaseModalOpen(false)} className="px-4 py-2 bg-slate-800 text-white rounded hover:bg-slate-900">
-                                Fechar
-                            </button>
-                        </div>
-                    </div>
-                </div>
-            )}
+      if (adjustments.length > 0) {
+          StorageService.saveInventory(updatedParts);
+          const currentMovements = StorageService.getMovements();
+          StorageService.saveMovements([...currentMovements, ...adjustments]);
+          
+          alert(`${adjustments.length} itens ajustados com sucesso.`);
+          loadData();
+          setInventoryCounts({});
+          setActiveTab('overview');
+      } else {
+          alert("Nenhuma divergência encontrada.");
+      }
+  };
+
+  // --- SEARCH HELPERS ---
+  const filteredParts = parts.filter(p => 
+    p.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
+    p.sku.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    p.barcode?.includes(searchTerm)
+  );
+
+  const lowStockItems = parts.filter(p => p.quantity <= p.minStock);
+
+  return (
+    <div className="p-4 md:p-8 h-full flex flex-col">
+      <div className="flex flex-col md:flex-row justify-between items-center mb-6 gap-4">
+        <div>
+            <h2 className="text-2xl font-bold text-slate-800 flex items-center gap-2">
+                <Package className="w-6 h-6 text-cyan-600" />
+                Controle de Estoque & Logística
+            </h2>
+            <p className="text-sm text-slate-500">Gestão de peças, entradas de notas e inventário.</p>
         </div>
-    );
+        
+        <div className="flex gap-2">
+            <button 
+                onClick={() => setIsPurchaseModalOpen(true)}
+                className="bg-amber-100 hover:bg-amber-200 text-amber-800 px-4 py-2 rounded-lg flex items-center gap-2 shadow-sm font-medium border border-amber-200 text-sm"
+            >
+                <ShoppingCart className="w-4 h-4" /> Compras
+                {lowStockItems.length > 0 && <span className="bg-red-500 text-white text-[10px] px-1.5 rounded-full">{lowStockItems.length}</span>}
+            </button>
+            <button 
+                onClick={() => setIsPartModalOpen(true)}
+                className="bg-cyan-600 hover:bg-cyan-700 text-white px-4 py-2 rounded-lg flex items-center gap-2 shadow-sm text-sm"
+            >
+                <Plus className="w-4 h-4" /> Novo Item
+            </button>
+        </div>
+      </div>
+
+      {/* Tabs */}
+      <div className="flex border-b border-slate-200 mb-6 bg-white rounded-t-lg overflow-x-auto">
+          {[
+              { id: 'overview', label: 'Visão Geral', icon: Search },
+              { id: 'entry', label: 'Entrada de Nota (NFe)', icon: UploadCloud },
+              { id: 'count', label: 'Inventário / Balanço', icon: CheckCircle },
+              { id: 'kardex', label: 'Histórico (Kardex)', icon: History },
+          ].map(tab => (
+              <button
+                  key={tab.id}
+                  onClick={() => setActiveTab(tab.id)}
+                  className={`flex items-center gap-2 px-6 py-3 text-sm font-medium border-b-2 transition-colors whitespace-nowrap ${activeTab === tab.id ? 'border-cyan-500 text-cyan-700 bg-cyan-50' : 'border-transparent text-slate-500 hover:bg-slate-50'}`}
+              >
+                  <tab.icon className="w-4 h-4"/> {tab.label}
+              </button>
+          ))}
+      </div>
+
+      <div className="flex-1 bg-white rounded-b-xl shadow-sm border border-slate-200 overflow-hidden flex flex-col">
+        
+        {/* --- TAB: OVERVIEW --- */}
+        {activeTab === 'overview' && (
+            <div className="flex flex-col h-full">
+                <div className="p-4 border-b border-slate-100 flex gap-4 bg-slate-50 items-center">
+                    <div className="relative flex-1 max-w-md">
+                        <Search className="absolute left-3 top-3 w-4 h-4 text-slate-400" />
+                        <input 
+                            type="text" 
+                            placeholder="Buscar por nome, SKU ou Código de Barras..." 
+                            className="w-full pl-10 pr-4 py-2 rounded-lg border border-slate-200 focus:outline-none focus:ring-2 focus:ring-cyan-500 bg-white text-slate-900"
+                            value={searchTerm}
+                            onChange={(e) => setSearchTerm(e.target.value)}
+                            autoFocus
+                        />
+                    </div>
+                    <button 
+                        onClick={() => setIsCameraOpen(true)}
+                        className="bg-slate-200 hover:bg-slate-300 text-slate-700 p-2 rounded-lg"
+                        title="Ler Código de Barras (Câmera)"
+                    >
+                        <Camera className="w-5 h-5"/>
+                    </button>
+                </div>
+                <div className="flex-1 overflow-y-auto">
+                    <table className="w-full text-left text-sm">
+                        <thead className="bg-slate-50 text-slate-600 uppercase text-xs font-semibold sticky top-0 z-10">
+                            <tr>
+                                <th className="px-6 py-4">SKU / Barcode</th>
+                                <th className="px-6 py-4">Descrição</th>
+                                <th className="px-6 py-4">Local</th>
+                                <th className="px-6 py-4 text-center">Estoque</th>
+                                <th className="px-6 py-4 text-right">Custo Médio</th>
+                                <th className="px-6 py-4 text-right">Venda</th>
+                                <th className="px-6 py-4 text-center">Status</th>
+                            </tr>
+                        </thead>
+                        <tbody className="divide-y divide-slate-100">
+                            {filteredParts.map((part) => (
+                            <tr key={part.id} className="hover:bg-slate-50">
+                                <td className="px-6 py-4 font-mono text-slate-500 text-xs">
+                                    <div>{part.sku}</div>
+                                    {part.barcode && <div className="text-[10px] flex items-center gap-1"><Barcode className="w-3 h-3"/> {part.barcode}</div>}
+                                </td>
+                                <td className="px-6 py-4 font-medium text-slate-900">{part.name}</td>
+                                <td className="px-6 py-4 text-slate-600 text-xs">{part.location || '-'}</td>
+                                <td className="px-6 py-4 text-center font-bold">{part.quantity}</td>
+                                <td className="px-6 py-4 text-right text-slate-500">R$ {part.cost.toFixed(2)}</td>
+                                <td className="px-6 py-4 text-right font-medium text-slate-900">R$ {part.price.toFixed(2)}</td>
+                                <td className="px-6 py-4 text-center">
+                                {part.quantity <= part.minStock ? (
+                                    <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full bg-red-100 text-red-700 text-xs font-medium">
+                                    <AlertTriangle className="w-3 h-3" /> Baixo
+                                    </span>
+                                ) : (
+                                    <span className="inline-flex px-2 py-1 rounded-full bg-emerald-100 text-emerald-700 text-xs font-medium">
+                                    Normal
+                                    </span>
+                                )}
+                                </td>
+                            </tr>
+                            ))}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        )}
+
+        {/* --- TAB: INVOICE ENTRY --- */}
+        {activeTab === 'entry' && (
+            <div className="flex flex-col h-full p-6 overflow-y-auto">
+                <div className="bg-slate-50 border-2 border-dashed border-slate-300 rounded-xl p-8 text-center mb-6">
+                    <UploadCloud className="w-10 h-10 text-slate-400 mx-auto mb-2" />
+                    <p className="text-slate-600 font-medium">Importar XML da Nota Fiscal</p>
+                    <p className="text-xs text-slate-400 mb-4">Arraste o arquivo ou clique para selecionar</p>
+                    <input 
+                        type="file" 
+                        accept=".xml"
+                        className="hidden" 
+                        id="xmlUpload"
+                        onChange={handleXmlUpload}
+                    />
+                    <label 
+                        htmlFor="xmlUpload"
+                        className="bg-cyan-600 text-white px-4 py-2 rounded-lg cursor-pointer hover:bg-cyan-700 text-sm font-medium"
+                    >
+                        Selecionar Arquivo XML
+                    </label>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+                    <div>
+                        <label className="block text-xs font-bold text-slate-500 mb-1">Número da Nota</label>
+                        <input 
+                            className="w-full p-2 border rounded bg-white text-slate-900" 
+                            value={invoiceForm.number || ''}
+                            onChange={e => setInvoiceForm({...invoiceForm, number: e.target.value})}
+                        />
+                    </div>
+                    <div>
+                        <label className="block text-xs font-bold text-slate-500 mb-1">Fornecedor</label>
+                        <input 
+                            className="w-full p-2 border rounded bg-white text-slate-900" 
+                            value={invoiceForm.supplier || ''}
+                            onChange={e => setInvoiceForm({...invoiceForm, supplier: e.target.value})}
+                        />
+                    </div>
+                    <div>
+                        <label className="block text-xs font-bold text-slate-500 mb-1">Data Emissão</label>
+                        <input 
+                            type="date"
+                            className="w-full p-2 border rounded bg-white text-slate-900" 
+                            value={invoiceForm.date || ''}
+                            onChange={e => setInvoiceForm({...invoiceForm, date: e.target.value})}
+                        />
+                    </div>
+                </div>
+
+                <h3 className="font-bold text-slate-700 mb-2">Itens da Nota</h3>
+                <div className="border rounded-lg overflow-hidden mb-6">
+                    <table className="w-full text-left text-sm">
+                        <thead className="bg-slate-100">
+                            <tr>
+                                <th className="p-3">Código (NF)</th>
+                                <th className="p-3">Produto (Descrição na Nota)</th>
+                                <th className="p-3 text-right">Qtd</th>
+                                <th className="p-3 text-right">V. Unit</th>
+                                <th className="p-3 text-right">Total</th>
+                                <th className="p-3">Vincular ao Produto do Sistema</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {invoiceForm.items?.map((item, idx) => (
+                                <tr key={idx} className="border-b">
+                                    <td className="p-3 font-mono text-xs">{item.sku}</td>
+                                    <td className="p-3">{item.name}</td>
+                                    <td className="p-3 text-right">{item.quantity}</td>
+                                    <td className="p-3 text-right">R$ {item.unitCost.toFixed(2)}</td>
+                                    <td className="p-3 text-right font-bold">R$ {item.total.toFixed(2)}</td>
+                                    <td className="p-3">
+                                        <select 
+                                            className={`w-full p-1.5 border rounded text-xs bg-white text-slate-900 ${!item.partId ? 'border-red-300 bg-red-50' : 'border-green-300 bg-green-50'}`}
+                                            value={item.partId || ''}
+                                            onChange={(e) => linkItemToPart(idx, e.target.value)}
+                                        >
+                                            <option value="">-- Selecione ou Cadastre --</option>
+                                            {parts.map(p => (
+                                                <option key={p.id} value={p.id}>{p.name} ({p.sku})</option>
+                                            ))}
+                                        </select>
+                                    </td>
+                                </tr>
+                            ))}
+                            {(!invoiceForm.items || invoiceForm.items.length === 0) && (
+                                <tr><td colSpan={6} className="p-8 text-center text-slate-400">Nenhum item adicionado. Importe um XML ou adicione manualmente.</td></tr>
+                            )}
+                        </tbody>
+                    </table>
+                </div>
+
+                <div className="flex justify-end gap-3">
+                    <button onClick={() => setInvoiceForm({items: []})} className="px-4 py-2 text-slate-600 border rounded hover:bg-slate-50">Limpar</button>
+                    <button onClick={handleInvoiceSubmit} className="px-6 py-2 bg-green-600 text-white rounded hover:bg-green-700 font-bold shadow">
+                        Processar Entrada de Estoque
+                    </button>
+                </div>
+            </div>
+        )}
+
+        {/* --- TAB: INVENTORY COUNT --- */}
+        {activeTab === 'count' && (
+            <div className="flex flex-col h-full">
+                <div className="p-4 bg-amber-50 border-b border-amber-100 text-amber-900 text-sm flex justify-between items-center">
+                    <div className="flex items-center gap-2">
+                        <AlertTriangle className="w-5 h-5"/>
+                        <span>Modo Balanço: As alterações aqui ajustarão o estoque imediatamente.</span>
+                    </div>
+                    <button 
+                        onClick={handleInventoryFinish}
+                        className="bg-amber-600 text-white px-4 py-2 rounded font-bold hover:bg-amber-700"
+                    >
+                        Finalizar Balanço
+                    </button>
+                </div>
+                <div className="flex-1 overflow-y-auto">
+                    <table className="w-full text-left text-sm">
+                        <thead className="bg-slate-50 sticky top-0 z-10">
+                            <tr>
+                                <th className="px-6 py-4">Produto</th>
+                                <th className="px-6 py-4">Local</th>
+                                <th className="px-6 py-4 text-center">Estoque Sistema</th>
+                                <th className="px-6 py-4 text-center">Contagem Física</th>
+                                <th className="px-6 py-4 text-center">Diferença</th>
+                            </tr>
+                        </thead>
+                        <tbody className="divide-y divide-slate-100">
+                            {parts.map(part => {
+                                const counted = inventoryCounts[part.id] ?? part.quantity;
+                                const diff = counted - part.quantity;
+                                return (
+                                    <tr key={part.id} className={diff !== 0 ? 'bg-red-50' : ''}>
+                                        <td className="px-6 py-4">
+                                            <div className="font-bold">{part.name}</div>
+                                            <div className="text-xs text-slate-500 font-mono">{part.sku}</div>
+                                        </td>
+                                        <td className="px-6 py-4 text-xs">{part.location}</td>
+                                        <td className="px-6 py-4 text-center font-medium text-slate-500">{part.quantity}</td>
+                                        <td className="px-6 py-4 text-center">
+                                            <input 
+                                                type="number" 
+                                                className="w-20 p-1 border rounded text-center font-bold bg-white text-slate-900"
+                                                value={counted}
+                                                onChange={(e) => setInventoryCounts({...inventoryCounts, [part.id]: Number(e.target.value)})}
+                                            />
+                                        </td>
+                                        <td className={`px-6 py-4 text-center font-bold ${diff < 0 ? 'text-red-600' : diff > 0 ? 'text-blue-600' : 'text-slate-300'}`}>
+                                            {diff > 0 ? '+' : ''}{diff}
+                                        </td>
+                                    </tr>
+                                )
+                            })}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        )}
+
+        {/* --- TAB: KARDEX --- */}
+        {activeTab === 'kardex' && (
+            <div className="flex flex-col h-full">
+                <div className="flex-1 overflow-y-auto">
+                    <table className="w-full text-left text-sm">
+                        <thead className="bg-slate-50 sticky top-0 z-10">
+                            <tr>
+                                <th className="px-6 py-4">Data/Hora</th>
+                                <th className="px-6 py-4">Produto</th>
+                                <th className="px-6 py-4">Tipo Movimento</th>
+                                <th className="px-6 py-4">Histórico</th>
+                                <th className="px-6 py-4 text-right">Qtd</th>
+                            </tr>
+                        </thead>
+                        <tbody className="divide-y divide-slate-100">
+                            {movements.length === 0 && <tr><td colSpan={5} className="p-8 text-center text-slate-400">Nenhuma movimentação registrada.</td></tr>}
+                            {[...movements].reverse().map(mov => { // Show newest first
+                                const part = parts.find(p => p.id === mov.partId);
+                                return (
+                                    <tr key={mov.id}>
+                                        <td className="px-6 py-4 text-xs text-slate-500">
+                                            {new Date(mov.date).toLocaleString('pt-BR')}
+                                        </td>
+                                        <td className="px-6 py-4 font-medium">{part?.name || 'Item Excluído'}</td>
+                                        <td className="px-6 py-4 text-xs">
+                                            <span className={`px-2 py-1 rounded-full font-bold ${
+                                                mov.type.includes('IN') || mov.type === 'ADJUSTMENT_PLUS' ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'
+                                            }`}>
+                                                {mov.type === 'IN_INVOICE' ? 'ENTRADA (NF)' : 
+                                                 mov.type === 'OUT_OS' ? 'SAÍDA (OS)' : 
+                                                 mov.type === 'ADJUSTMENT_PLUS' ? 'AJUSTE (+)' : 'AJUSTE (-)'}
+                                            </span>
+                                        </td>
+                                        <td className="px-6 py-4 text-slate-500 text-xs">{mov.description} <span className="text-slate-400">({mov.user})</span></td>
+                                        <td className="px-6 py-4 text-right font-mono font-bold">
+                                            {mov.type.includes('OUT') || mov.type.includes('MINUS') ? '-' : '+'}{mov.quantity}
+                                        </td>
+                                    </tr>
+                                );
+                            })}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        )}
+
+      </div>
+
+      {/* --- MODALS --- */}
+
+      {/* Camera/Barcode Modal */}
+      {isCameraOpen && (
+          <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 p-4">
+              <div className="bg-white rounded-lg p-6 w-full max-w-sm text-center">
+                  <Camera className="w-12 h-12 mx-auto text-slate-300 mb-4"/>
+                  <h3 className="font-bold text-lg mb-2">Ler Código de Barras</h3>
+                  
+                  {/* HTML5 QR Code Render Area */}
+                  <div id="reader" className="w-full mb-4 bg-slate-100 rounded"></div>
+
+                  <input 
+                    type="text" 
+                    placeholder="Ou digite manualmente..." 
+                    className="w-full p-2 border rounded mb-4 bg-white text-slate-900"
+                    autoFocus
+                    onChange={(e) => {
+                        setSearchTerm(e.target.value);
+                    }}
+                  />
+                  <button onClick={() => setIsCameraOpen(false)} className="w-full bg-slate-200 p-2 rounded text-slate-700">Fechar</button>
+              </div>
+          </div>
+      )}
+
+      {/* Purchase Order Modal */}
+      {isPurchaseModalOpen && (
+          <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+              <div className="bg-white rounded-lg p-6 w-full max-w-2xl shadow-xl">
+                  <h3 className="text-lg font-bold mb-4 flex items-center gap-2"><ShoppingCart className="w-5 h-5"/> Sugestão de Pedido de Compra</h3>
+                  <p className="text-sm text-slate-500 mb-4">Itens abaixo do estoque mínimo que precisam de reposição.</p>
+                  
+                  <div className="max-h-96 overflow-y-auto border rounded-lg">
+                      <table className="w-full text-sm text-left">
+                          <thead className="bg-slate-50">
+                              <tr>
+                                  <th className="p-3">SKU</th>
+                                  <th className="p-3">Produto</th>
+                                  <th className="p-3 text-center">Atual</th>
+                                  <th className="p-3 text-center">Mínimo</th>
+                                  <th className="p-3 text-right">Sugestão Compra</th>
+                              </tr>
+                          </thead>
+                          <tbody>
+                              {lowStockItems.map(p => (
+                                  <tr key={p.id} className="border-b">
+                                      <td className="p-3 font-mono text-xs">{p.sku}</td>
+                                      <td className="p-3">{p.name}</td>
+                                      <td className="p-3 text-center text-red-600 font-bold">{p.quantity}</td>
+                                      <td className="p-3 text-center">{p.minStock}</td>
+                                      <td className="p-3 text-right font-bold text-blue-600">
+                                          {Math.max(10, p.minStock * 2) - p.quantity} un
+                                      </td>
+                                  </tr>
+                              ))}
+                              {lowStockItems.length === 0 && (
+                                  <tr><td colSpan={5} className="p-6 text-center text-green-600 font-medium">Estoque saudável! Nada a comprar.</td></tr>
+                              )}
+                          </tbody>
+                      </table>
+                  </div>
+                  <div className="mt-6 flex justify-end gap-3">
+                      <button onClick={() => setIsPurchaseModalOpen(false)} className="px-4 py-2 border rounded hover:bg-slate-50 text-slate-900 bg-white">Fechar</button>
+                      <button onClick={() => window.print()} className="px-4 py-2 bg-slate-800 text-white rounded hover:bg-slate-700 flex items-center gap-2">
+                          <Printer className="w-4 h-4"/> Imprimir Lista
+                      </button>
+                  </div>
+              </div>
+          </div>
+      )}
+
+      {/* New Part Modal */}
+      {isPartModalOpen && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-lg p-6 w-full max-w-lg shadow-xl">
+            <h3 className="text-lg font-bold mb-4">Cadastrar Nova Peça</h3>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="col-span-2">
+                <label className="block text-xs font-medium text-slate-700 mb-1">Nome da Peça</label>
+                <input 
+                  type="text" 
+                  className="w-full p-2 border rounded bg-white text-slate-900"
+                  value={newPart.name || ''}
+                  onChange={e => setNewPart({...newPart, name: e.target.value})}
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-slate-700 mb-1">SKU (Código Interno)</label>
+                <input 
+                  type="text" 
+                  className="w-full p-2 border rounded bg-white text-slate-900"
+                  value={newPart.sku || ''}
+                  onChange={e => setNewPart({...newPart, sku: e.target.value})}
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-slate-700 mb-1">Código de Barras (EAN)</label>
+                <input 
+                  type="text" 
+                  className="w-full p-2 border rounded bg-white text-slate-900"
+                  value={newPart.barcode || ''}
+                  onChange={e => setNewPart({...newPart, barcode: e.target.value})}
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-slate-700 mb-1">Qtd. Inicial</label>
+                <input 
+                  type="number" 
+                  className="w-full p-2 border rounded bg-white text-slate-900"
+                  value={newPart.quantity || ''}
+                  onChange={e => setNewPart({...newPart, quantity: Number(e.target.value)})}
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-slate-700 mb-1">Localização (Estante)</label>
+                <input 
+                  type="text" 
+                  className="w-full p-2 border rounded bg-white text-slate-900"
+                  value={newPart.location || ''}
+                  onChange={e => setNewPart({...newPart, location: e.target.value})}
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-slate-700 mb-1">Preço Custo</label>
+                <input 
+                  type="number" 
+                  className="w-full p-2 border rounded bg-white text-slate-900"
+                  value={newPart.cost || ''}
+                  onChange={e => setNewPart({...newPart, cost: Number(e.target.value)})}
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-slate-700 mb-1">Preço Venda</label>
+                <input 
+                  type="number" 
+                  className="w-full p-2 border rounded bg-white text-slate-900"
+                  value={newPart.price || ''}
+                  onChange={e => setNewPart({...newPart, price: Number(e.target.value)})}
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-slate-700 mb-1">Estoque Mínimo</label>
+                <input 
+                  type="number" 
+                  className="w-full p-2 border rounded bg-white text-slate-900"
+                  value={newPart.minStock || ''}
+                  onChange={e => setNewPart({...newPart, minStock: Number(e.target.value)})}
+                />
+              </div>
+            </div>
+            <div className="mt-6 flex justify-end gap-3">
+              <button 
+                onClick={() => setIsPartModalOpen(false)}
+                className="px-4 py-2 text-slate-600 hover:bg-slate-100 rounded"
+              >
+                Cancelar
+              </button>
+              <button 
+                onClick={handleSavePart}
+                className="px-4 py-2 bg-cyan-600 text-white rounded hover:bg-cyan-700"
+              >
+                Salvar Peça
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
 };

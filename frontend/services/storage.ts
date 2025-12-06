@@ -1,7 +1,5 @@
 import { Boat, Part, ServiceOrder, OSStatus, Client, Transaction, Marina, SystemConfig, User, UserRole, ServiceItem, Invoice, StockMovement, ServiceDefinition } from '../types';
 
-// Chaves usadas para salvar os dados no LocalStorage do navegador
-// O LocalStorage funciona como um pequeno banco de dados dentro do navegador do usuário
 const KEYS = {
   BOATS: 'marealta_boats',
   INVENTORY: 'marealta_inventory',
@@ -16,24 +14,18 @@ const KEYS = {
   SERVICES: 'marealta_services_catalog',
 };
 
-// --- FUNÇÕES AUXILIARES (HELPERS) ---
-
-// Gera uma data futura ou passada baseada no dia de hoje
+// --- HELPER FUNCTIONS ---
 const getDate = (dayOffset: number, hour: number = 9): string => {
   const date = new Date();
   date.setDate(date.getDate() + dayOffset);
   date.setHours(hour, 0, 0, 0);
-  return date.toISOString(); // Retorna em formato de texto ISO (ex: 2023-10-25T09:00:00.000Z)
+  return date.toISOString();
 };
 
-// Pega um item aleatório de uma lista (usado para gerar dados de teste)
 const getRandomItem = <T>(arr: T[]): T => arr[Math.floor(Math.random() * arr.length)];
-// Gera um número inteiro aleatório entre min e max
 const getRandomInt = (min: number, max: number) => Math.floor(Math.random() * (max - min + 1)) + min;
 
-// --- DADOS INICIAIS (SEED DATA) ---
-// Estes dados são carregados automaticamente se o sistema estiver vazio (primeiro acesso)
-
+// --- SEED DATA (STATIC) ---
 const seedUsers: User[] = [
   { id: 'u1', name: 'Administrador Mare Alta', email: 'admin@marealta.com', password: '123456', role: UserRole.ADMIN },
   { id: 'u2', name: 'João Técnico', email: 'tecnico@marealta.com', password: '123456', role: UserRole.TECHNICIAN },
@@ -107,429 +99,392 @@ const ORDER_DESCRIPTIONS = [
   "Polimento de casco", "Reparo no trim", "Troca de hélice", "Diagnóstico com scanner", "Vazamento de óleo no porão"
 ];
 
-const TECHNICIANS = ["João Técnico", "Maria Elétrica", "Carlos Mecânico"];
+const TECHNICIANS = ["João Técnico", "Pedro Santos", "Carlos Eletricista", "Marcos Mecânico"];
 
-// --- INICIALIZAÇÃO DO ARMAZENAMENTO ---
-// Esta função verifica se o LocalStorage está vazio e, se estiver, preenche com os dados de teste acima.
-const initStorage = () => {
-  if (typeof window === 'undefined') return;
+const generatedOrders: ServiceOrder[] = [];
+const generatedTransactions: Transaction[] = [];
 
-  if (!localStorage.getItem(KEYS.BOATS)) {
-    localStorage.setItem(KEYS.BOATS, JSON.stringify(seedBoats));
-    localStorage.setItem(KEYS.INVENTORY, JSON.stringify(seedParts));
-    localStorage.setItem(KEYS.CLIENTS, JSON.stringify(seedClients));
-    localStorage.setItem(KEYS.MARINAS, JSON.stringify(seedMarinas));
-    localStorage.setItem(KEYS.USERS, JSON.stringify(seedUsers));
-    localStorage.setItem(KEYS.SERVICES, JSON.stringify(seedServicesCatalog));
+// Create 100 Orders
+for (let i = 0; i < 100; i++) {
+  const isPast = i < 70; // 70 Completed/Past orders
+  const isFuture = i > 85; // 15 Future orders
 
-    // Configurações iniciais de fabricantes
-    const config: SystemConfig = {
-      boatManufacturers: {
-        'Schaefer Yachts': ['Phantom 303', 'Phantom 375', 'Phantom 400', 'V33'],
-        'Focker (Fibrafort)': ['Focker 240', 'Focker 255', 'Focker 333', 'Style 215'],
-        'Coral Lanchas': ['Coral 26', 'Coral 33', 'Coral 19'],
-        'DGS Defence': ['DGS 888', 'DGS 650', 'DGS 999 Raptor'],
-        'Flexboat': ['SR 500', 'SR 620', 'SR 760'],
-        'Triton Yachts': ['Triton 300', 'Triton 350', 'Triton 440'],
-        'Azimut': ['Azimut 50', 'Azimut 60', 'Azimut 27 Metri'],
-        'Levefort': ['Marajó 19', 'Marajó 17', 'Metalglass 600']
-      },
-      engineManufacturers: {
-        'Mercury': ['Verado 300 V8', 'SeaPro 115', 'SeaPro 150', 'Mercruiser 6.2L', 'Mercruiser 4.5L', '60hp 4-Stroke', '40hp 2-Stroke', 'Racing 450R'],
-        'Yamaha': ['F115 BET', 'F150 DET', 'F300 V6'],
-        'Volvo Penta': ['D4-260', 'D6-370', 'D13-900', 'V8-350'],
-        'Rotax': ['1503 NA', '1630 ACE']
-      }
-    };
-    localStorage.setItem(KEYS.CONFIG, JSON.stringify(config));
+  let status: OSStatus;
+  let dayOffset: number;
 
-    // Gera Ordens de Serviço e Transações aleatórias para popular o dashboard
-    const orders: ServiceOrder[] = [];
-    const transactions: Transaction[] = [];
-    const movements: StockMovement[] = [];
+  if (isPast) {
+    status = Math.random() > 0.1 ? OSStatus.COMPLETED : OSStatus.CANCELED;
+    dayOffset = getRandomInt(-180, -1); // Last 6 months
+  } else if (isFuture) {
+    status = Math.random() > 0.5 ? OSStatus.APPROVED : OSStatus.PENDING;
+    dayOffset = getRandomInt(1, 60); // Next 2 months
+  } else {
+    // Current
+    status = getRandomItem([OSStatus.IN_PROGRESS, OSStatus.PENDING, OSStatus.QUOTATION]);
+    dayOffset = getRandomInt(-5, 5);
+  }
 
-    for (let i = 0; i < 25; i++) {
-      const boat = getRandomItem(seedBoats);
-      const description = getRandomItem(ORDER_DESCRIPTIONS);
-      const status = getRandomItem(Object.values(OSStatus));
-      const date = getDate(-getRandomInt(0, 30));
-
-      // Lógica de Itens da OS
-      const items: ServiceItem[] = [];
-      let total = 0;
-
-      // Adiciona peças aleatórias
-      if (Math.random() > 0.3) {
-        const part = getRandomItem(seedParts);
-        const qty = getRandomInt(1, 3);
-        const itemTotal = part.price * qty;
-        items.push({
-          id: `si-${i}-p`,
-          type: 'PART',
-          description: part.name,
+  const boat = getRandomItem(seedBoats);
+  const date = getDate(dayOffset, getRandomInt(8, 17));
+  const desc = getRandomItem(ORDER_DESCRIPTIONS);
+  
+  // Generate random items for value
+  const items: ServiceItem[] = [];
+  let totalValue = 0;
+  if (status !== OSStatus.PENDING && status !== OSStatus.CANCELED) {
+      const laborCost = getRandomInt(200, 1500);
+      items.push({ id: `i_l_${i}`, type: 'LABOR', description: 'Mão de Obra Especializada', quantity: 1, unitPrice: laborCost, total: laborCost });
+      
+      const part = getRandomItem(seedParts);
+      const qty = getRandomInt(1, 4);
+      items.push({ 
+          id: `i_p_${i}`, 
+          type: 'PART', 
+          description: part.name, 
           partId: part.id,
-          quantity: qty,
+          quantity: qty, 
+          unitPrice: part.price, 
           unitCost: part.cost,
-          unitPrice: part.price,
-          total: itemTotal
-        });
-        total += itemTotal;
-
-        if (status === OSStatus.COMPLETED) {
-          // Se a OS já nasce concluída, gera o movimento de saída de estoque
-          movements.push({
-            id: `mov-${i}`,
-            partId: part.id,
-            type: 'OUT_OS',
-            quantity: qty,
-            date: date,
-            description: `Saída OS #${100 + i}`,
-            user: 'Sistema'
-          });
-        }
-      }
-
-      // Adiciona mão de obra aleatória
-      const laborPrice = getRandomInt(200, 1500);
-      items.push({
-        id: `si-${i}-l`,
-        type: 'LABOR',
-        description: 'Mão de Obra Especializada',
-        quantity: 1,
-        unitPrice: laborPrice,
-        total: laborPrice
+          total: part.price * qty 
       });
-      total += laborPrice;
+      
+      totalValue = laborCost + (part.price * qty);
+  }
 
-      const order: ServiceOrder = {
-        id: (1000 + i).toString(),
-        boatId: boat.id,
-        engineId: boat.engines[0]?.id,
-        description,
-        status,
-        items,
-        totalValue: total,
-        createdAt: date,
-        requester: 'Seed Script',
-        notes: [],
-        technicianName: getRandomItem(TECHNICIANS),
-        scheduledAt: status !== OSStatus.COMPLETED ? getDate(getRandomInt(0, 7), getRandomInt(8, 16)) : undefined,
-        estimatedDuration: getRandomInt(2, 8)
-      };
-      orders.push(order);
+  const orderId = `OS-2024-${(100 + i).toString()}`;
+  
+  generatedOrders.push({
+    id: orderId,
+    boatId: boat.id,
+    engineId: boat.engines[0]?.id,
+    description: desc,
+    status: status,
+    items: items,
+    totalValue: totalValue,
+    createdAt: date,
+    requester: getRandomItem(['Cliente', 'Marinha', 'Gerente Pátio', 'Whatsapp']),
+    technicianName: status === OSStatus.PENDING ? undefined : getRandomItem(TECHNICIANS),
+    scheduledAt: date,
+    estimatedDuration: getRandomInt(2, 8),
+    notes: [],
+    checklist: [],
+    timeLogs: status === OSStatus.IN_PROGRESS ? [{ start: getDate(0, 8) }] : []
+  });
 
-      if (status === OSStatus.COMPLETED) {
-        transactions.push({
-          id: `tr-${i}`,
+  // Generate Transaction for Completed Orders
+  if (status === OSStatus.COMPLETED) {
+      generatedTransactions.push({
+          id: `t_inc_${i}`,
           type: 'INCOME',
           category: 'Serviços',
-          description: `Recebimento OS #${order.id}`,
-          amount: total,
+          description: `Receita OS #${orderId} - ${boat.name}`,
+          amount: totalValue,
           date: date,
           status: 'PAID',
-          orderId: order.id
-        });
-      }
-    }
-
-    // Gera Despesas aleatórias
-    for (let i = 0; i < 5; i++) {
-      const val = getRandomInt(500, 3000);
-      transactions.push({
-        id: `exp-${i}`,
-        type: 'EXPENSE',
-        category: getRandomItem(['Aluguel', 'Energia', 'Peças', 'Impostos']),
-        description: getRandomItem(['Conta de Luz', 'Aluguel Pátio', 'Compra de Peças', 'Imposto ISS']),
-        amount: val,
-        date: getDate(-getRandomInt(0, 30)),
-        status: 'PAID'
+          orderId: orderId,
+          documentNumber: `NFS-${1000+i}`
       });
-    }
+  }
+}
 
-    localStorage.setItem(KEYS.ORDERS, JSON.stringify(orders));
-    localStorage.setItem(KEYS.FINANCE, JSON.stringify(transactions));
-    localStorage.setItem(KEYS.MOVEMENTS, JSON.stringify(movements));
+// Generate Random Expenses
+for (let i = 0; i < 30; i++) {
+    const dayOffset = getRandomInt(-90, 0);
+    const amount = getRandomInt(100, 2000);
+    const category = getRandomItem(['Combustível', 'Alimentação', 'Peças (Compra)', 'Energia', 'Aluguel', 'Ferramentas']);
+    
+    generatedTransactions.push({
+        id: `t_exp_${i}`,
+        type: 'EXPENSE',
+        category: category,
+        description: `${category} - Lançamento Diverso`,
+        amount: amount,
+        date: getDate(dayOffset),
+        status: 'PAID'
+    });
+}
+
+// Ensure essential pending expenses exist
+generatedTransactions.push(
+  { id: 't_pending_1', type: 'EXPENSE', category: 'Infraestrutura', description: 'Aluguel Galpão (A Vencer)', amount: 4500.00, date: getDate(5), status: 'PENDING' },
+  { id: 't_pending_2', type: 'EXPENSE', category: 'Estoque', description: 'Pedido Mercury #4459', amount: 8200.00, date: getDate(2), status: 'PENDING' }
+);
+
+
+const seedConfig: SystemConfig = {
+  boatManufacturers: {
+    "Schaefer Yachts": ["Phantom 303", "Phantom 400", "Schaefer 510", "Schaefer 660"],
+    "Intermarine": ["Intermarine 42", "Intermarine 60", "Intermarine 80"],
+    "Fibrafort (Focker)": ["Focker 210", "Focker 240", "Focker 255", "Focker 333"],
+    "NX Boats": ["NX 250", "NX 270", "NX 340", "NX 400"],
+    "Azimut Yachts": ["Azimut 50", "Azimut 60", "Azimut 83"],
+    "Coral": ["Coral 26", "Coral 30", "Coral 43"],
+    "Triton Yachts": ["Triton 300", "Triton 370", "Triton 520"],
+    "Levefort": ["Marajó 17", "Marajó 19"],
+    "SeaDoo": ["GTI 130", "RXP-X 300", "Spark"],
+    "Yamaha (Jet)": ["VX Cruiser", "GP1800R"]
+  },
+  engineManufacturers: {
+    "Mercury (Outboard)": ["15hp", "40hp", "60hp", "90hp", "115hp", "150hp", "200hp", "300hp V8", "400hp V10", "600hp V12"],
+    "Mercury MerCruiser": ["4.5L V6", "6.2L V8", "8.2L MAG"],
+    "Mercury Diesel": ["2.0L", "3.0L V6", "4.2L V8"],
+    "Volvo Penta": ["D4", "D6", "V6", "V8"],
+    "Yamaha": ["40hp", "60hp", "115hp", "250hp"],
+    "Rotax": ["1503", "1630 ACE"]
   }
 };
 
-// --- SERVIÇO DE ARMAZENAMENTO (API LOCAL) ---
-// Este objeto contém todas as funções para ler e gravar dados.
-// Em um sistema real, estas funções fariam chamadas de rede (fetch/axios) para um backend.
+// Helper to deep copy defaults if not found in storage
+const getOrSeed = <T>(key: string, seed: T): T => {
+    const data = localStorage.getItem(key);
+    if (data) return JSON.parse(data);
+    // Important: Return a deep copy of the seed to prevent reference issues
+    return JSON.parse(JSON.stringify(seed));
+};
 
 export const StorageService = {
-  // --- Configurações ---
-  getConfig: (): SystemConfig => {
-    initStorage();
-    const data = localStorage.getItem(KEYS.CONFIG);
-    return data ? JSON.parse(data) : { boatManufacturers: {}, engineManufacturers: {} };
-  },
-  saveConfig: (config: SystemConfig) => {
-    localStorage.setItem(KEYS.CONFIG, JSON.stringify(config));
+  getClients: (): Client[] => getOrSeed(KEYS.CLIENTS, seedClients),
+  saveClients: (clients: Client[]) => localStorage.setItem(KEYS.CLIENTS, JSON.stringify(clients)),
+
+  getMarinas: (): Marina[] => getOrSeed(KEYS.MARINAS, seedMarinas),
+  saveMarinas: (marinas: Marina[]) => localStorage.setItem(KEYS.MARINAS, JSON.stringify(marinas)),
+
+  getBoats: (): Boat[] => getOrSeed(KEYS.BOATS, seedBoats),
+  saveBoats: (boats: Boat[]) => localStorage.setItem(KEYS.BOATS, JSON.stringify(boats)),
+
+  getInventory: (): Part[] => getOrSeed(KEYS.INVENTORY, seedParts),
+  saveInventory: (parts: Part[]) => localStorage.setItem(KEYS.INVENTORY, JSON.stringify(parts)),
+
+  getInvoices: (): Invoice[] => getOrSeed(KEYS.INVOICES, []),
+  saveInvoices: (invoices: Invoice[]) => localStorage.setItem(KEYS.INVOICES, JSON.stringify(invoices)),
+
+  getMovements: (): StockMovement[] => getOrSeed(KEYS.MOVEMENTS, []),
+  saveMovements: (movements: StockMovement[]) => localStorage.setItem(KEYS.MOVEMENTS, JSON.stringify(movements)),
+
+  addMovement: (movement: StockMovement) => {
+      const movements = StorageService.getMovements();
+      movements.push(movement);
+      localStorage.setItem(KEYS.MOVEMENTS, JSON.stringify(movements));
   },
 
-  // --- Autenticação ---
-  getUsers: (): User[] => {
-    initStorage();
-    return JSON.parse(localStorage.getItem(KEYS.USERS) || '[]');
-  },
-  saveUsers: (users: User[]) => {
-    localStorage.setItem(KEYS.USERS, JSON.stringify(users));
-  },
-  login: (email: string, pass: string): User | undefined => {
-    initStorage();
-    const users = JSON.parse(localStorage.getItem(KEYS.USERS) || '[]');
-    return users.find((u: User) => u.email === email && u.password === pass);
-  },
-
-  // --- Dados Básicos (CRUDs) ---
-  getBoats: (): Boat[] => {
-    initStorage();
-    return JSON.parse(localStorage.getItem(KEYS.BOATS) || '[]');
-  },
-  saveBoats: (boats: Boat[]) => {
-    localStorage.setItem(KEYS.BOATS, JSON.stringify(boats));
-  },
-  getClients: (): Client[] => {
-    initStorage();
-    return JSON.parse(localStorage.getItem(KEYS.CLIENTS) || '[]');
-  },
-  saveClients: (clients: Client[]) => {
-    localStorage.setItem(KEYS.CLIENTS, JSON.stringify(clients));
-  },
-  getMarinas: (): Marina[] => {
-    initStorage();
-    return JSON.parse(localStorage.getItem(KEYS.MARINAS) || '[]');
-  },
-  saveMarinas: (marinas: Marina[]) => {
-    localStorage.setItem(KEYS.MARINAS, JSON.stringify(marinas));
-  },
-  getServices: (): ServiceDefinition[] => {
-    initStorage();
-    return JSON.parse(localStorage.getItem(KEYS.SERVICES) || '[]');
-  },
-
-  // --- Estoque ---
-  getInventory: (): Part[] => {
-    initStorage();
-    return JSON.parse(localStorage.getItem(KEYS.INVENTORY) || '[]');
-  },
-  saveInventory: (parts: Part[]) => {
-    localStorage.setItem(KEYS.INVENTORY, JSON.stringify(parts));
-  },
-  getMovements: (): StockMovement[] => {
-    initStorage();
-    return JSON.parse(localStorage.getItem(KEYS.MOVEMENTS) || '[]');
-  },
-  saveMovements: (movements: StockMovement[]) => {
-    localStorage.setItem(KEYS.MOVEMENTS, JSON.stringify(movements));
-  },
-  getInvoices: (): Invoice[] => {
-    initStorage();
-    return JSON.parse(localStorage.getItem(KEYS.INVOICES) || '[]');
-  },
-  // Processa uma Nota Fiscal: Salva a nota e atualiza o estoque (soma quantidades)
+  // Process a new Invoice (Updates stock and adds movement)
   processInvoice: (invoice: Invoice, user: string) => {
-    // 1. Salva a Nota
-    const invoices = JSON.parse(localStorage.getItem(KEYS.INVOICES) || '[]');
-    invoices.push(invoice);
-    localStorage.setItem(KEYS.INVOICES, JSON.stringify(invoices));
+      const parts = StorageService.getInventory();
+      const invoices = StorageService.getInvoices();
+      const movements = StorageService.getMovements();
+      const transactions = StorageService.getTransactions();
 
-    // 2. Atualiza Estoque
-    const parts = JSON.parse(localStorage.getItem(KEYS.INVENTORY) || '[]');
-    const movements = JSON.parse(localStorage.getItem(KEYS.MOVEMENTS) || '[]');
-
-    invoice.items.forEach(item => {
-      if (item.partId) {
-        const partIndex = parts.findIndex((p: Part) => p.id === item.partId);
-        if (partIndex >= 0) {
-          // Converte para número para evitar erros de concatenação de string
-          const currentQty = Number(parts[partIndex].quantity) || 0;
-          const addedQty = Number(item.quantity) || 0;
-
-          parts[partIndex].quantity = currentQty + addedQty;
-
-          // Atualiza o custo se vier na nota
-          const newCost = Number(item.unitCost) || 0;
-          if (newCost > 0) {
-            parts[partIndex].cost = newCost;
+      // 1. Update Inventory and Create Movements
+      invoice.items.forEach(item => {
+          if (!item.partId) return;
+          
+          const partIndex = parts.findIndex(p => p.id === item.partId);
+          if (partIndex >= 0) {
+              const part = parts[partIndex];
+              // Update Quantity
+              const oldQty = part.quantity;
+              part.quantity += item.quantity;
+              
+              // Update Cost (Weighted Average)
+              // (Old Cost * Old Qty + New Cost * New Qty) / Total Qty
+              const totalValue = (part.cost * oldQty) + (item.unitCost * item.quantity);
+              part.cost = totalValue / part.quantity;
+              
+              // Add Movement Log
+              movements.push({
+                  id: Date.now().toString() + Math.random(),
+                  partId: part.id,
+                  type: 'IN_INVOICE',
+                  quantity: item.quantity,
+                  date: new Date().toISOString(),
+                  referenceId: invoice.id,
+                  description: `Entrada via NF ${invoice.number} - ${invoice.supplier}`,
+                  user: user
+              });
           }
+      });
 
-          // Registra o movimento de entrada
-          movements.push({
-            id: `mov-${Date.now()}-${item.sku}`,
-            partId: item.partId,
-            type: 'IN_INVOICE',
-            quantity: addedQty,
-            date: new Date().toISOString(),
-            referenceId: invoice.number,
-            description: `Entrada NF ${invoice.number}`,
-            user
-          });
-        }
-      }
-    });
-
-    localStorage.setItem(KEYS.INVENTORY, JSON.stringify(parts));
-    localStorage.setItem(KEYS.MOVEMENTS, JSON.stringify(movements));
-  },
-
-  // --- Ordens de Serviço ---
-  getOrders: (): ServiceOrder[] => {
-    initStorage();
-    const orders = JSON.parse(localStorage.getItem(KEYS.ORDERS) || '[]');
-    // Retorna ordenado por data (mais recente primeiro)
-    return orders.sort((a: ServiceOrder, b: ServiceOrder) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
-  },
-  saveOrder: (order: ServiceOrder) => {
-    const orders = JSON.parse(localStorage.getItem(KEYS.ORDERS) || '[]');
-    const index = orders.findIndex((o: ServiceOrder) => o.id === order.id);
-    if (index >= 0) {
-      orders[index] = order; // Atualiza existente
-    } else {
-      orders.push(order); // Cria nova
-    }
-    localStorage.setItem(KEYS.ORDERS, JSON.stringify(orders));
-  },
-  saveOrders: (orders: ServiceOrder[]) => {
-    localStorage.setItem(KEYS.ORDERS, JSON.stringify(orders));
-  },
-  updateOrderStatus: (id: string, status: OSStatus): ServiceOrder | null => {
-    const orders = JSON.parse(localStorage.getItem(KEYS.ORDERS) || '[]');
-    const index = orders.findIndex((o: ServiceOrder) => o.id === id);
-    if (index >= 0) {
-      orders[index].status = status;
-      localStorage.setItem(KEYS.ORDERS, JSON.stringify(orders));
-      return orders[index];
-    }
-    return null;
-  },
-  // Finaliza uma OS: Gera receita e baixa estoque
-  completeServiceOrder: (id: string): ServiceOrder | null => {
-    const orders = JSON.parse(localStorage.getItem(KEYS.ORDERS) || '[]');
-    const index = orders.findIndex((o: ServiceOrder) => o.id === id);
-
-    if (index >= 0 && orders[index].status !== OSStatus.COMPLETED) {
-      const order = orders[index];
-      order.status = OSStatus.COMPLETED;
-
-      // 1. Gera Transação Financeira (Receita)
-      const transactions = JSON.parse(localStorage.getItem(KEYS.FINANCE) || '[]');
+      // 2. Add Invoice to History
+      invoices.push(invoice);
+      
+      // 3. Create Expense Transaction
       transactions.push({
-        id: `inc-${Date.now()}`,
-        type: 'INCOME',
-        category: 'Serviços',
-        description: `Recebimento OS #${order.id} - ${order.boatId}`,
-        amount: Number(order.totalValue),
-        date: new Date().toISOString(),
-        status: 'PENDING', // Fica pendente até confirmar pagamento
-        orderId: order.id
-      });
-      localStorage.setItem(KEYS.FINANCE, JSON.stringify(transactions));
-
-      // 2. Baixa Estoque (apenas peças)
-      const parts = JSON.parse(localStorage.getItem(KEYS.INVENTORY) || '[]');
-      const movements = JSON.parse(localStorage.getItem(KEYS.MOVEMENTS) || '[]');
-
-      order.items.forEach((item: ServiceItem) => {
-        if (item.type === 'PART' && item.partId) {
-          const pIdx = parts.findIndex((p: Part) => p.id === item.partId);
-          if (pIdx >= 0) {
-            const currentQty = Number(parts[pIdx].quantity) || 0;
-            const deductQty = Number(item.quantity) || 0;
-            parts[pIdx].quantity = Math.max(0, currentQty - deductQty);
-
-            movements.push({
-              id: `mov-${Date.now()}-${item.partId}`,
-              partId: item.partId,
-              type: 'OUT_OS',
-              quantity: deductQty,
-              date: new Date().toISOString(),
-              referenceId: order.id,
-              description: `Saída OS #${order.id}`,
-              user: 'Sistema'
-            });
-          }
-        }
+          id: Date.now().toString(),
+          type: 'EXPENSE',
+          category: 'Peças (Compra)',
+          description: `Compra NF ${invoice.number} - ${invoice.supplier}`,
+          amount: invoice.totalValue,
+          date: invoice.date,
+          status: 'PAID', // Assuming paid for simplicity, could be PENDING
+          documentNumber: invoice.number
       });
 
+      // Save All
       localStorage.setItem(KEYS.INVENTORY, JSON.stringify(parts));
+      localStorage.setItem(KEYS.INVOICES, JSON.stringify(invoices));
       localStorage.setItem(KEYS.MOVEMENTS, JSON.stringify(movements));
-      localStorage.setItem(KEYS.ORDERS, JSON.stringify(orders));
-
-      return order;
-    }
-    return null;
-  },
-  // Reabre uma OS: Estorna financeiro e devolve estoque
-  reopenServiceOrder: (id: string): ServiceOrder | null => {
-    const orders = JSON.parse(localStorage.getItem(KEYS.ORDERS) || '[]');
-    const index = orders.findIndex((o: ServiceOrder) => o.id === id);
-
-    if (index >= 0 && orders[index].status === OSStatus.COMPLETED) {
-      const order = orders[index];
-      order.status = OSStatus.IN_PROGRESS; // Volta para em execução
-
-      // 1. Cancela/Remove Transação Financeira
-      let transactions = JSON.parse(localStorage.getItem(KEYS.FINANCE) || '[]');
-      transactions = transactions.filter((t: Transaction) => t.orderId !== order.id);
       localStorage.setItem(KEYS.FINANCE, JSON.stringify(transactions));
+  },
 
-      // 2. Devolve Estoque
-      const parts = JSON.parse(localStorage.getItem(KEYS.INVENTORY) || '[]');
-      const movements = JSON.parse(localStorage.getItem(KEYS.MOVEMENTS) || '[]');
-
-      order.items.forEach((item: ServiceItem) => {
-        if (item.type === 'PART' && item.partId) {
-          const pIdx = parts.findIndex((p: Part) => p.id === item.partId);
-          if (pIdx >= 0) {
-            const currentQty = Number(parts[pIdx].quantity) || 0;
-            const returnQty = Number(item.quantity) || 0;
-            parts[pIdx].quantity = currentQty + returnQty;
-
-            movements.push({
-              id: `mov-ret-${Date.now()}-${item.partId}`,
-              partId: item.partId,
-              type: 'RETURN_OS',
-              quantity: returnQty,
-              date: new Date().toISOString(),
-              referenceId: order.id,
-              description: `Estorno OS #${order.id}`,
-              user: 'Sistema'
-            });
-          }
+  getOrders: (): ServiceOrder[] => getOrSeed(KEYS.ORDERS, generatedOrders),
+  saveOrders: (orders: ServiceOrder[]) => localStorage.setItem(KEYS.ORDERS, JSON.stringify(orders)),
+  
+  // -- ADVANCED ORDER MANAGEMENT --
+  
+  completeServiceOrder: (orderId: string): boolean => {
+      console.log("Tentando concluir ordem: ", orderId);
+      try {
+        const orders = StorageService.getOrders();
+        const orderIndex = orders.findIndex(o => o.id === orderId);
+        
+        if(orderIndex < 0) {
+            console.error("Ordem não encontrada: " + orderId);
+            return false;
         }
+        
+        const order = orders[orderIndex];
+        
+        // Prevent double completion
+        if (order.status === OSStatus.COMPLETED) {
+             console.log("Ordem já estava concluída.");
+             return true;
+        }
+
+        const parts = StorageService.getInventory();
+        const movements = StorageService.getMovements();
+        const transactions = StorageService.getTransactions();
+        const boats = StorageService.getBoats();
+        const boat = boats.find(b => b.id === order.boatId);
+
+        // 1. Deduct Stock for Used Parts
+        if (order.items && order.items.length > 0) {
+            order.items.forEach(item => {
+                if (item.type === 'PART' && item.partId) {
+                    const partIndex = parts.findIndex(p => p.id === item.partId);
+                    if (partIndex >= 0) {
+                        console.log(`Baixando estoque: Peça ${parts[partIndex].name}, Qtd ${item.quantity}`);
+                        parts[partIndex].quantity -= item.quantity;
+                        movements.push({
+                            id: Date.now().toString() + Math.random(),
+                            partId: item.partId,
+                            type: 'OUT_OS',
+                            quantity: item.quantity,
+                            date: new Date().toISOString(),
+                            referenceId: order.id,
+                            description: `Saída OS #${order.id} - ${item.description}`,
+                            user: 'Sistema'
+                        });
+                    } else {
+                        console.warn(`Peça ID ${item.partId} não encontrada no inventário.`);
+                    }
+                }
+            });
+        }
+
+        // 2. Generate Income Transaction
+        const exists = transactions.some(t => t.orderId === order.id && t.status !== 'CANCELED');
+        if (!exists) {
+            transactions.push({
+                id: Date.now().toString(),
+                type: 'INCOME',
+                category: 'Serviços',
+                description: `Receita OS #${order.id} - ${boat?.name || 'Embarcação'}`,
+                amount: order.totalValue,
+                date: new Date().toISOString(),
+                status: 'PAID',
+                orderId: order.id,
+                documentNumber: `NFS-${order.id}`
+            });
+        }
+
+        // 3. Update Order Status
+        order.status = OSStatus.COMPLETED;
+        orders[orderIndex] = order;
+
+        // Save Everything Explicitly
+        StorageService.saveInventory(parts);
+        StorageService.saveMovements(movements);
+        StorageService.saveTransactions(transactions);
+        StorageService.saveOrders(orders);
+        
+        console.log("Ordem concluída e salva com sucesso.");
+        return true;
+      } catch (e) {
+        console.error("Erro ao concluir ordem (Exception):", e);
+        return false;
+      }
+  },
+
+  reopenServiceOrder: (orderId: string): boolean => {
+      const orders = StorageService.getOrders();
+      const orderIndex = orders.findIndex(o => o.id === orderId);
+      if(orderIndex < 0) return false;
+
+      const order = orders[orderIndex];
+      // Only can reopen Completed orders
+      if (order.status !== OSStatus.COMPLETED) return false;
+
+      const parts = StorageService.getInventory();
+      const movements = StorageService.getMovements();
+      const transactions = StorageService.getTransactions();
+
+      // 1. Return Stock (Reverse Deduction)
+      order.items.forEach(item => {
+          if (item.type === 'PART' && item.partId) {
+              const partIndex = parts.findIndex(p => p.id === item.partId);
+              if (partIndex >= 0) {
+                  parts[partIndex].quantity += item.quantity;
+                  movements.push({
+                      id: Date.now().toString() + Math.random(),
+                      partId: item.partId,
+                      type: 'RETURN_OS', // New Type or use ADJUSTMENT_PLUS
+                      quantity: item.quantity,
+                      date: new Date().toISOString(),
+                      referenceId: order.id,
+                      description: `Estorno (Reabertura) OS #${order.id} - ${item.description}`,
+                      user: 'Admin'
+                  });
+              }
+          }
       });
 
-      localStorage.setItem(KEYS.INVENTORY, JSON.stringify(parts));
-      localStorage.setItem(KEYS.MOVEMENTS, JSON.stringify(movements));
-      localStorage.setItem(KEYS.ORDERS, JSON.stringify(orders));
+      // 2. Cancel Financial Transaction
+      const transIndex = transactions.findIndex(t => t.orderId === order.id && t.status === 'PAID');
+      if (transIndex >= 0) {
+          transactions[transIndex].status = 'CANCELED';
+          transactions[transIndex].description += ' (ESTORNADO)';
+      }
 
-      return order;
-    }
-    return null;
+      // 3. Update Order Status
+      order.status = OSStatus.IN_PROGRESS;
+      orders[orderIndex] = order;
+
+      StorageService.saveInventory(parts);
+      StorageService.saveMovements(movements);
+      StorageService.saveTransactions(transactions);
+      StorageService.saveOrders(orders);
+      return true;
   },
 
-  // --- Financeiro ---
-  getTransactions: (): Transaction[] => {
-    initStorage();
-    const trans = JSON.parse(localStorage.getItem(KEYS.FINANCE) || '[]');
-    return trans.sort((a: Transaction, b: Transaction) => new Date(b.date).getTime() - new Date(a.date).getTime());
-  },
-  saveTransactions: (transactions: Transaction[]) => {
-    localStorage.setItem(KEYS.FINANCE, JSON.stringify(transactions));
+  getTransactions: (): Transaction[] => getOrSeed(KEYS.FINANCE, generatedTransactions),
+  saveTransactions: (transactions: Transaction[]) => localStorage.setItem(KEYS.FINANCE, JSON.stringify(transactions)),
+
+  getConfig: (): SystemConfig => getOrSeed(KEYS.CONFIG, seedConfig),
+  saveConfig: (config: SystemConfig) => localStorage.setItem(KEYS.CONFIG, JSON.stringify(config)),
+
+  getUsers: (): User[] => getOrSeed(KEYS.USERS, seedUsers),
+  saveUsers: (users: User[]) => localStorage.setItem(KEYS.USERS, JSON.stringify(users)),
+
+  // --- SERVICE CATALOG METHODS ---
+  getServices: (): ServiceDefinition[] => getOrSeed(KEYS.SERVICES, seedServicesCatalog),
+  saveServices: (services: ServiceDefinition[]) => localStorage.setItem(KEYS.SERVICES, JSON.stringify(services)),
+
+  login: (email: string, pass: string): User | null => {
+      const users = StorageService.getUsers();
+      return users.find(u => u.email === email && u.password === pass) || null;
   },
 
-  // --- Utils ---
-  // Limpa apenas dados operacionais (mantém cadastros básicos)
-  clearOperationalData: () => {
-    localStorage.removeItem(KEYS.ORDERS);
-    localStorage.removeItem(KEYS.FINANCE);
-    localStorage.removeItem(KEYS.MOVEMENTS);
-    localStorage.removeItem(KEYS.INVOICES);
-    window.location.reload();
-  },
-  // Reseta TUDO (volta ao estado zero)
-  factoryReset: () => {
+  reset: () => {
     localStorage.clear();
     window.location.reload();
   }

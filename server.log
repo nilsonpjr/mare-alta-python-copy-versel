@@ -1,0 +1,41 @@
+/Users/nilsonpereira/Downloads/mare-alta-python/backend/venv/lib/python3.9/site-packages/urllib3/__init__.py:35: NotOpenSSLWarning: urllib3 v2 only supports OpenSSL 1.1.1+, currently the 'ssl' module is compiled with 'LibreSSL 2.8.3'. See: https://github.com/urllib3/urllib3/issues/3020
+  warnings.warn(
+INFO:     Started server process [44607]
+INFO:     Waiting for application startup.
+INFO:     Application startup complete.
+INFO:     Uvicorn running on http://0.0.0.0:8000 (Press CTRL+C to quit)
+DEBUG: Initial frontend_dist: /Users/nilsonpereira/Downloads/mare-alta-python/frontend/dist
+DEBUG: Current __file__: /Users/nilsonpereira/Downloads/mare-alta-python/backend/main.py
+DEBUG: CWD: /Users/nilsonpereira/Downloads/mare-alta-python/backend
+DEBUG: frontend_dist found at /Users/nilsonpereira/Downloads/mare-alta-python/frontend/dist
+DEBUG: Listing frontend_dist: ['index.html', 'assets']
+REQUEST LOG: GET /
+INFO:     127.0.0.1:62496 - "GET / HTTP/1.1" 200 OK
+REQUEST LOG: GET /assets/index-D40bqJH1.js
+DEBUG: Request for asset: index-D40bqJH1.js
+DEBUG: Serving asset from /Users/nilsonpereira/Downloads/mare-alta-python/frontend/dist/assets/index-D40bqJH1.js
+REQUEST LOG: GET /assets/index-C4XU9q51.css
+DEBUG: Request for asset: index-C4XU9q51.css
+DEBUG: Serving asset from /Users/nilsonpereira/Downloads/mare-alta-python/frontend/dist/assets/index-C4XU9q51.css
+ASSET RESPONSE: /assets/index-D40bqJH1.js -> 200
+INFO:     127.0.0.1:62496 - "GET /assets/index-D40bqJH1.js HTTP/1.1" 200 OK
+ASSET RESPONSE: /assets/index-C4XU9q51.css -> 200
+INFO:     127.0.0.1:62498 - "GET /assets/index-C4XU9q51.css HTTP/1.1" 200 OK
+REQUEST LOG: GET /favicon.ico
+INFO:     127.0.0.1:62496 - "GET /favicon.ico HTTP/1.1" 200 OK
+REQUEST LOG: POST /api/auth/login
+INFO:     127.0.0.1:62510 - "POST /api/auth/login HTTP/1.1" 200 OK
+REQUEST LOG: GET /api/auth/me
+INFO:     127.0.0.1:62510 - "GET /api/auth/me HTTP/1.1" 200 OK
+REQUEST LOG: GET /api/orders
+REQUEST LOG: GET /api/boats
+REQUEST LOG: GET /api/inventory/parts
+REQUEST LOG: GET /api/clients
+INFO:     127.0.0.1:62545 - "GET /api/inventory/parts HTTP/1.1" 200 OK
+INFO:     127.0.0.1:62546 - "GET /api/clients HTTP/1.1" 200 OK
+INFO:     127.0.0.1:62540 - "GET /api/orders HTTP/1.1" 200 OK
+INFO:     127.0.0.1:62543 - "GET /api/boats HTTP/1.1" 200 OK
+INFO:     Shutting down
+INFO:     Waiting for application shutdown.
+INFO:     Application shutdown complete.
+INFO:     Finished server process [44607]

@@ -1,0 +1,29 @@
+/Users/nilsonpereira/Downloads/mare-alta-python/backend/venv/lib/python3.9/site-packages/urllib3/__init__.py:35: NotOpenSSLWarning: urllib3 v2 only supports OpenSSL 1.1.1+, currently the 'ssl' module is compiled with 'LibreSSL 2.8.3'. See: https://github.com/urllib3/urllib3/issues/3020
+  warnings.warn(
+INFO:     Started server process [48246]
+INFO:     Waiting for application startup.
+INFO:     Application startup complete.
+INFO:     Uvicorn running on http://0.0.0.0:8000 (Press CTRL+C to quit)
+DEBUG: Initial frontend_dist: /Users/nilsonpereira/Downloads/mare-alta-python/frontend/dist
+DEBUG: Current __file__: /Users/nilsonpereira/Downloads/mare-alta-python/backend/main.py
+DEBUG: CWD: /Users/nilsonpereira/Downloads/mare-alta-python/backend
+DEBUG: frontend_dist found at /Users/nilsonpereira/Downloads/mare-alta-python/frontend/dist
+DEBUG: Listing frontend_dist: ['index.html', 'assets']
+REQUEST LOG: GET /
+INFO:     127.0.0.1:63189 - "GET / HTTP/1.1" 200 OK
+REQUEST LOG: GET /assets/index-CCojYLRp.css
+DEBUG: Request for asset: index-CCojYLRp.css
+DEBUG: Serving asset from /Users/nilsonpereira/Downloads/mare-alta-python/frontend/dist/assets/index-CCojYLRp.css
+REQUEST LOG: GET /assets/index-B8jvM_d7.js
+DEBUG: Request for asset: index-B8jvM_d7.js
+DEBUG: Serving asset from /Users/nilsonpereira/Downloads/mare-alta-python/frontend/dist/assets/index-B8jvM_d7.js
+ASSET RESPONSE: /assets/index-CCojYLRp.css -> 200
+INFO:     127.0.0.1:63190 - "GET /assets/index-CCojYLRp.css HTTP/1.1" 200 OK
+ASSET RESPONSE: /assets/index-B8jvM_d7.js -> 200
+INFO:     127.0.0.1:63189 - "GET /assets/index-B8jvM_d7.js HTTP/1.1" 200 OK
+REQUEST LOG: GET /favicon.ico
+INFO:     127.0.0.1:63189 - "GET /favicon.ico HTTP/1.1" 200 OK
+INFO:     Shutting down
+INFO:     Waiting for application shutdown.
+INFO:     Application shutdown complete.
+INFO:     Finished server process [48246]

@@ -1,137 +1,90 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { Transaction, TransactionCreate } from '../types'; // Importa as definições de tipo para transações.
-import { ApiService } from '../services/api'; // Importa o serviço de API para comunicação com o backend.
+import { Transaction } from '../types';
+import { StorageService } from '../services/storage';
 import { 
   DollarSign, TrendingUp, TrendingDown, Plus, 
   Search, FileText, Calendar, ArrowUpRight, ArrowDownRight 
-} from 'lucide-react'; // Ícones para a interface.
-import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell } from 'recharts'; // Componentes para gráficos (atualmente não utilizados no JSX, mas importados).
+} from 'lucide-react';
+import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell } from 'recharts';
 
-/**
- * FinanceView (Visão Financeira)
- * Componente React para gerenciar e visualizar transações financeiras.
- * Inclui a exibição de KPIs (Receitas, Despesas, Saldo) e permite o lançamento manual de novas transações.
- */
 export const FinanceView: React.FC = () => {
-  // --- Variáveis de Estado ---
-  const [transactions, setTransactions] = useState<Transaction[]>([]); // Lista de transações financeiras carregadas do backend.
-  const [searchTerm, setSearchTerm] = useState(''); // Termo de busca para filtrar a lista de transações.
-  const [isModalOpen, setIsModalOpen] = useState(false); // Controla a visibilidade do modal de "Novo Lançamento".
-  const [newTransaction, setNewTransaction] = useState<TransactionCreate>({
-    type: 'EXPENSE', // Tipo padrão para nova transação (Despesa).
-    date: new Date().toISOString().split('T')[0], // Data padrão: hoje.
-    status: 'PAID', // Status padrão: Pago.
-    category: '', // Categoria vazia.
-    description: '', // Descrição vazia.
-    amount: 0, // Valor inicial zero.
+  const [transactions, setTransactions] = useState<Transaction[]>([]);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [newTransaction, setNewTransaction] = useState<Partial<Transaction>>({
+    type: 'EXPENSE',
+    date: new Date().toISOString().split('T')[0],
+    status: 'PAID'
   });
 
-  /**
-   * KPI (Key Performance Indicators) - Indicadores Chave de Performance.
-   * Calcula as receitas totais, despesas totais, saldo e valor pendente
-   * com base nas transações atuais. Re-calculado apenas quando 'transactions' muda.
-   */
-  const kpi = useMemo(() => {
-    const income = transactions
-      .filter(t => t.type === 'INCOME') // Filtra transações de receita.
-      .reduce((acc, curr) => acc + curr.amount, 0); // Soma os valores.
-    
-    const expense = transactions
-      .filter(t => t.type === 'EXPENSE') // Filtra transações de despesa.
-      .reduce((acc, curr) => acc + curr.amount, 0); // Soma os valores.
-
-    const pending = transactions
-      .filter(t => t.status === 'PENDING') // Filtra transações com status 'PENDING'.
-      .reduce((acc, curr) => acc + curr.amount, 0); // Soma os valores.
-
-    return { income, expense, balance: income - expense, pending };
-  }, [transactions]); // Depende da lista de transações.
-
-  /**
-   * Função assíncrona para buscar as transações financeiras do backend.
-   * Atualiza o estado `transactions` com os dados recebidos.
-   */
-  const fetchTransactions = async () => {
-    try {
-      const data = await ApiService.getTransactions(); // Chama o serviço de API para obter as transações.
-      setTransactions(data); // Atualiza o estado com as transações.
-    } catch (error) {
-      console.error("Falha ao buscar transações", error);
-      // Em uma aplicação real, aqui seria exibida uma notificação de erro para o usuário.
-    }
-  };
-
-  /**
-   * Hook useEffect: Executa `fetchTransactions` uma única vez após a montagem inicial do componente.
-   * O array de dependências vazio (`[]`) garante que o efeito não será re-executado em re-renderizações subsequentes.
-   */
   useEffect(() => {
-    fetchTransactions();
+    setTransactions(StorageService.getTransactions());
   }, []);
 
-  /**
-   * Lida com o salvamento de uma nova transação.
-   * Valida os campos obrigatórios e chama a API para criar a transação.
-   * Após salvar, recarrega as transações e fecha o modal.
-   */
-  const handleSave = async () => {
-    // Validação básica dos campos obrigatórios.
-    if (!newTransaction.description || !newTransaction.amount || !newTransaction.date) {
-      alert("Por favor, preencha a descrição, o valor e a data da transação.");
-      return;
-    }
+  const kpi = useMemo(() => {
+    const income = transactions
+      .filter(t => t.type === 'INCOME')
+      .reduce((acc, curr) => acc + curr.amount, 0);
+    
+    const expense = transactions
+      .filter(t => t.type === 'EXPENSE')
+      .reduce((acc, curr) => acc + curr.amount, 0);
 
-    try {
-      await ApiService.createTransaction(newTransaction); // Chama a API para criar a transação.
-      fetchTransactions(); // Recarrega a lista de transações para incluir a recém-criada.
-      setIsModalOpen(false); // Fecha o modal de lançamento.
-      // Reseta o formulário de nova transação para os valores padrão.
-      setNewTransaction({
-        type: 'EXPENSE',
-        date: new Date().toISOString().split('T')[0],
-        status: 'PAID',
-        category: '',
-        description: '',
-        amount: 0,
-      });
-    } catch (error) {
-      console.error("Falha ao salvar transação", error);
-      // Em uma aplicação real, aqui seria exibida uma notificação de erro para o usuário.
-      alert("Erro ao salvar transação. Tente novamente.");
-    }
+    const pending = transactions
+      .filter(t => t.status === 'PENDING')
+      .reduce((acc, curr) => acc + curr.amount, 0);
+
+    return { income, expense, balance: income - expense, pending };
+  }, [transactions]);
+
+  const handleSave = () => {
+    if (!newTransaction.description || !newTransaction.amount || !newTransaction.date) return;
+    
+    const transaction: Transaction = {
+      id: Date.now().toString(),
+      type: newTransaction.type || 'EXPENSE',
+      category: newTransaction.category || 'Geral',
+      description: newTransaction.description,
+      amount: Number(newTransaction.amount),
+      date: newTransaction.date,
+      status: newTransaction.status || 'PAID',
+      documentNumber: newTransaction.documentNumber
+    };
+
+    const updated = [transaction, ...transactions];
+    setTransactions(updated);
+    StorageService.saveTransactions(updated);
+    setIsModalOpen(false);
+    setNewTransaction({
+      type: 'EXPENSE',
+      date: new Date().toISOString().split('T')[0],
+      status: 'PAID'
+    });
   };
 
-  /**
-   * Variável memoizada que filtra a lista de transações com base no termo de busca.
-   * A busca é insensível a maiúsculas/minúsculas e verifica descrição, número de documento e categoria.
-   */
-  const filteredTransactions = useMemo(() => transactions.filter(t => 
+  const filteredTransactions = transactions.filter(t => 
     t.description.toLowerCase().includes(searchTerm.toLowerCase()) || 
     t.documentNumber?.toLowerCase().includes(searchTerm.toLowerCase()) ||
     t.category.toLowerCase().includes(searchTerm.toLowerCase())
-  ), [transactions, searchTerm]);
+  );
 
-  // --- Renderização do Componente (JSX) ---
-  // A estrutura JSX define a interface do usuário do componente FinanceView.
   return (
     <div className="p-8">
-      {/* Cabeçalho da página com título e botão para adicionar novo lançamento */}
       <div className="flex justify-between items-center mb-6">
         <div>
            <h2 className="text-2xl font-bold text-slate-800">Financeiro</h2>
            <p className="text-slate-500 text-sm">Controle de Entradas e Saídas</p>
         </div>
         <button 
-          onClick={() => setIsModalOpen(true)} // Abre o modal de novo lançamento.
+          onClick={() => setIsModalOpen(true)}
           className="bg-slate-800 hover:bg-slate-900 text-white px-4 py-2 rounded-lg flex items-center gap-2 shadow-sm"
         >
           <Plus className="w-4 h-4" /> Lançamento Manual
         </button>
       </div>
 
-      {/* Cartões KPI (Key Performance Indicators) - Receitas, Despesas e Saldo */}
+      {/* KPI Cards */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-        {/* Cartão de Receitas Totais */}
         <div className="bg-white p-6 rounded-xl shadow-sm border border-slate-200 relative overflow-hidden">
           <div className="absolute top-0 right-0 p-4 opacity-10">
              <TrendingUp className="w-16 h-16 text-emerald-600" />
@@ -145,7 +98,6 @@ export const FinanceView: React.FC = () => {
           <p className="text-3xl font-bold text-slate-800">R$ {kpi.income.toFixed(2)}</p>
         </div>
 
-        {/* Cartão de Despesas Totais */}
         <div className="bg-white p-6 rounded-xl shadow-sm border border-slate-200 relative overflow-hidden">
            <div className="absolute top-0 right-0 p-4 opacity-10">
              <TrendingDown className="w-16 h-16 text-red-600" />
@@ -159,7 +111,6 @@ export const FinanceView: React.FC = () => {
           <p className="text-3xl font-bold text-slate-800">R$ {kpi.expense.toFixed(2)}</p>
         </div>
 
-        {/* Cartão de Saldo Líquido (Receitas - Despesas) */}
         <div className={`p-6 rounded-xl shadow-sm border relative overflow-hidden ${kpi.balance >= 0 ? 'bg-gradient-to-br from-cyan-600 to-blue-700 text-white border-transparent' : 'bg-white border-slate-200 text-red-600'}`}>
            <div className="absolute top-0 right-0 p-4 opacity-20">
              <DollarSign className="w-16 h-16 text-white" />
@@ -174,10 +125,9 @@ export const FinanceView: React.FC = () => {
         </div>
       </div>
 
-      {/* Lista de Transações */}
+      {/* Transaction List */}
       <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
         <div className="p-4 border-b border-slate-100 flex gap-4 bg-slate-50">
-          {/* Campo de busca para filtrar a lista de transações */}
           <div className="relative flex-1 max-w-md">
             <Search className="absolute left-3 top-3 w-4 h-4 text-slate-400" />
             <input 
@@ -190,7 +140,6 @@ export const FinanceView: React.FC = () => {
           </div>
         </div>
 
-        {/* Tabela de Transações */}
         <table className="w-full text-left text-sm">
           <thead className="bg-slate-50 text-slate-600 uppercase text-xs font-semibold">
             <tr>
@@ -203,7 +152,6 @@ export const FinanceView: React.FC = () => {
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-100">
-            {/* Exibe uma mensagem se não houver transações filtradas, caso contrário, mapeia as transações */}
             {filteredTransactions.length === 0 ? (
                 <tr>
                     <td colSpan={6} className="px-6 py-8 text-center text-slate-400">Nenhum lançamento encontrado.</td>
@@ -211,11 +159,11 @@ export const FinanceView: React.FC = () => {
             ) : filteredTransactions.map((t) => (
               <tr key={t.id} className="hover:bg-slate-50">
                 <td className="px-6 py-4 text-slate-500 font-mono text-xs">
-                    {new Date(t.date).toLocaleDateString('pt-BR')} {/* Formata a data para o padrão brasileiro */}
+                    {new Date(t.date).toLocaleDateString('pt-BR')}
                 </td>
                 <td className="px-6 py-4 font-medium text-slate-900">
                     {t.description}
-                    {t.orderId && <span className="ml-2 text-[10px] bg-blue-100 text-blue-700 px-1.5 py-0.5 rounded">AUTO</span>} {/* Indica transações automáticas */}
+                    {t.orderId && <span className="ml-2 text-[10px] bg-blue-100 text-blue-700 px-1.5 py-0.5 rounded">AUTO</span>}
                 </td>
                 <td className="px-6 py-4 text-slate-600">
                     <div className="flex flex-col">
@@ -233,7 +181,7 @@ export const FinanceView: React.FC = () => {
                 <td className={`px-6 py-4 text-right font-bold ${
                     t.type === 'INCOME' ? 'text-emerald-600' : 'text-red-600'
                 }`}>
-                    {t.type === 'EXPENSE' ? '-' : '+'} R$ {t.amount.toFixed(2)} {/* Exibe o valor formatado */}
+                    {t.type === 'EXPENSE' ? '-' : '+'} R$ {t.amount.toFixed(2)}
                 </td>
                 <td className="px-6 py-4 text-center">
                   {t.status === 'PAID' ? (
@@ -252,14 +200,13 @@ export const FinanceView: React.FC = () => {
         </table>
       </div>
 
-      {/* Modal de Novo Lançamento Manual */}
       {isModalOpen && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-lg p-6 w-full max-w-lg shadow-xl">
             <h3 className="text-lg font-bold mb-4">Novo Lançamento</h3>
             
             <div className="grid grid-cols-2 gap-4">
-               {/* Opção de seleção de Tipo (Despesa/Receita) */}
+               {/* Type Toggle */}
                <div className="col-span-2 flex gap-4 mb-2">
                   <label className="flex items-center gap-2 cursor-pointer">
                       <input 
@@ -283,7 +230,6 @@ export const FinanceView: React.FC = () => {
                   </label>
                </div>
 
-              {/* Campo para Descrição */}
               <div className="col-span-2">
                 <label className="block text-xs font-medium text-slate-700 mb-1">Descrição</label>
                 <input 
@@ -295,7 +241,6 @@ export const FinanceView: React.FC = () => {
                 />
               </div>
 
-              {/* Campo para Categoria com datalist de sugestões */}
               <div>
                 <label className="block text-xs font-medium text-slate-700 mb-1">Categoria</label>
                 <input 
@@ -314,7 +259,6 @@ export const FinanceView: React.FC = () => {
                 </datalist>
               </div>
 
-              {/* Campo para Valor */}
               <div>
                 <label className="block text-xs font-medium text-slate-700 mb-1">Valor (R$)</label>
                 <input 
@@ -326,7 +270,6 @@ export const FinanceView: React.FC = () => {
                 />
               </div>
 
-              {/* Campo para Data */}
               <div>
                 <label className="block text-xs font-medium text-slate-700 mb-1">Data</label>
                 <input 
@@ -337,7 +280,6 @@ export const FinanceView: React.FC = () => {
                 />
               </div>
 
-              {/* Campo para Número do Documento / NF */}
               <div>
                 <label className="block text-xs font-medium text-slate-700 mb-1">Nº Documento / NF</label>
                 <input 
@@ -349,16 +291,15 @@ export const FinanceView: React.FC = () => {
               </div>
             </div>
 
-            {/* Botões de ação do Modal */}
             <div className="mt-6 flex justify-end gap-3">
               <button 
-                onClick={() => setIsModalOpen(false)} // Fecha o modal ao cancelar.
+                onClick={() => setIsModalOpen(false)}
                 className="px-4 py-2 text-slate-600 hover:bg-slate-100 rounded"
               >
                 Cancelar
               </button>
               <button 
-                onClick={handleSave} // Salva o lançamento ao clicar.
+                onClick={handleSave}
                 className="px-4 py-2 bg-slate-800 text-white rounded hover:bg-slate-700"
               >
                 Salvar Lançamento

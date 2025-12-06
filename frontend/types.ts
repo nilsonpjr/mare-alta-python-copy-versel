@@ -2,7 +2,8 @@
 export enum UserRole {
   ADMIN = 'ADMIN',
   CLIENT = 'CLIENT',
-  TECHNICIAN = 'TECHNICIAN'
+  TECHNICIAN = 'TECHNICIAN',
+  MANAGER = 'MANAGER'
 }
 
 export enum OSStatus {
@@ -206,19 +207,19 @@ export interface Model {
 }
 
 export interface CompanyInfo {
-    id?: number;
-    company_name?: string;
-    trade_name?: string;
-    cnpj?: string;
-    ie?: string;
-    street?: string;
-    number?: string;
-    neighborhood?: string;
-    city?: string;
-    state?: string;
-    zip?: string;
-    crt?: string;
-    environment?: string;
+  id?: number;
+  company_name?: string;
+  trade_name?: string;
+  cnpj?: string;
+  ie?: string;
+  street?: string;
+  number?: string;
+  neighborhood?: string;
+  city?: string;
+  state?: string;
+  zip?: string;
+  crt?: string;
+  environment?: string;
 }
 
 export interface ServiceOrder {
