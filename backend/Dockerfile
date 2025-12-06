@@ -1,3 +1,12 @@
+# Estágio 1: Build do Frontend
+FROM node:18-alpine as frontend-build
+WORKDIR /app/frontend
+COPY frontend/package*.json ./
+RUN npm install
+COPY frontend/ .
+RUN npm run build
+
+# Estágio 2: Backend com Playwright
 FROM python:3.9-slim
 
 WORKDIR /app
@@ -28,14 +37,26 @@ RUN apt-get update && apt-get install -y \
     --no-install-recommends && \
     rm -rf /var/lib/apt/lists/*
 
-COPY requirements.txt .
+# Copiar requirements e instalar dependências Python
+COPY backend/requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
 # Instalar browsers Playwright
 RUN playwright install chromium
 RUN playwright install-deps chromium
 
-COPY . .
+# Copiar código do backend
+COPY backend/ .
+
+# Copiar o frontend buildado do estágio 1
+# O backend espera encontrar ../frontend/dist, então vamos replicar essa estrutura
+# Ou melhor, vamos colocar dentro de /app/frontend/dist e ajustar o main.py se necessário
+# Mas como o main.py faz os.path.join(os.path.dirname(...), "frontend", "dist"), ele sobe um nível.
+# Se backend está em /app, ele sobe para /, e procura /frontend/dist.
+# Então vamos copiar para /frontend/dist na raiz? Não, workdir é /app.
+# main.py está em /app/main.py. dirname é /app. dirname(dirname) é /.
+# Então ele procura /frontend/dist.
+COPY --from=frontend-build /app/frontend/dist /frontend/dist
 
 # Expor porta
 EXPOSE 8000
