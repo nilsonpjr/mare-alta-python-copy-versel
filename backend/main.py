@@ -44,6 +44,16 @@ app.add_middleware(
     allow_headers=["*"],  # Permite todos os cabeçalhos nas requisições.
 )
 
+# Middleware de Logging para Debug
+@app.middleware("http")
+async def log_requests(request, call_next):
+    print(f"REQUEST LOG: {request.method} {request.url.path}")
+    response = await call_next(request)
+    # Log assets responses to see if they are 200 or 404
+    if request.url.path.startswith("/assets"):
+        print(f"ASSET RESPONSE: {request.url.path} -> {response.status_code}")
+    return response
+
 # Inclui todos os roteadores na aplicação principal.
 # Cada roteador adiciona suas próprias rotas baseadas nos prefixos definidos neles.
 app.include_router(auth_router) # Roteador para autenticação de usuários (login, registro).
