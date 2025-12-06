@@ -64,11 +64,29 @@ from fastapi.responses import FileResponse, JSONResponse # Importa JSONResponse 
 # Ele sobe dois níveis do diretório atual (backend), entra em 'frontend' e depois em 'dist'.
 frontend_dist = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "frontend", "dist")
 
+# Debug Paths (Logs aparecerão no Render)
+print(f"DEBUG: Initial frontend_dist: {frontend_dist}")
+print(f"DEBUG: Current __file__: {os.path.abspath(__file__)}")
+print(f"DEBUG: CWD: {os.getcwd()}")
+if os.path.exists("/app"):
+    print(f"DEBUG: Listing /app: {os.listdir('/app')}")
+if os.path.exists("/frontend"):
+    print(f"DEBUG: Listing /frontend: {os.listdir('/frontend')}")
+
+# Fallback para caminho absoluto no Docker (se o cálculo relativo falhar)
+if not os.path.exists(frontend_dist) and os.path.exists("/frontend/dist"):
+    print("DEBUG: Using absolute Docker path /frontend/dist")
+    frontend_dist = "/frontend/dist"
+
 # Verifica se a pasta 'dist' do frontend existe.
 if os.path.exists(frontend_dist):
+    print(f"DEBUG: frontend_dist found at {frontend_dist}")
+    print(f"DEBUG: Listing frontend_dist: {os.listdir(frontend_dist)}")
+    
     # Monta a pasta 'assets' do frontend para servir arquivos estáticos como CSS, JS, imagens.
     assets_path = os.path.join(frontend_dist, "assets")
     if os.path.exists(assets_path):
+        print(f"DEBUG: Mounting assets from {assets_path}")
         app.mount("/assets", StaticFiles(directory=assets_path), name="assets")
     else:
         print(f"Aviso: Pasta de assets não encontrada em {assets_path}. O frontend pode não carregar corretamente.")
