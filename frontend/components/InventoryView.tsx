@@ -371,8 +371,13 @@ export const InventoryView: React.FC = () => {
             const part = parts[i];
 
             try {
-                // Search Mercury API by SKU
-                const response = await ApiService.searchMercuryProduct(part.sku);
+                // Extract SKU after first dash (remove quantity prefix like "35-")
+                // Example: "35-8M0065104" -> "8M0065104"
+                const skuParts = part.sku.split('-');
+                const mercurySku = skuParts.length > 1 ? skuParts.slice(1).join('-') : part.sku;
+
+                // Search Mercury API by cleaned SKU
+                const response = await ApiService.searchMercuryProduct(mercurySku);
 
                 if (response.status === 'success' && response.results.length > 0) {
                     const mercuryData = response.results[0];
@@ -395,7 +400,7 @@ export const InventoryView: React.FC = () => {
                     };
 
                     successCount++;
-                    console.log(`✅ ${part.sku}: Custo=${valorCusto} Venda=${valorVenda}`);
+                    console.log(`✅ ${part.sku} (${mercurySku}): Custo=${valorCusto} Venda=${valorVenda}`);
                 } else {
                     errorCount++;
                     console.log(`⚠️ ${part.sku}: Não encontrado na API Mercury`);
@@ -1051,6 +1056,24 @@ export const InventoryView: React.FC = () => {
                                     className="w-full p-2 border rounded bg-white text-slate-900"
                                     value={editingPart.name}
                                     onChange={e => setEditingPart({ ...editingPart, name: e.target.value })}
+                                />
+                            </div>
+                            <div>
+                                <label className="block text-xs font-medium text-slate-700 mb-1">SKU / Part Number</label>
+                                <input
+                                    type="text"
+                                    className="w-full p-2 border rounded bg-white text-slate-900 font-mono text-sm"
+                                    value={editingPart.sku}
+                                    onChange={e => setEditingPart({ ...editingPart, sku: e.target.value })}
+                                />
+                            </div>
+                            <div>
+                                <label className="block text-xs font-medium text-slate-700 mb-1">Código de Barras</label>
+                                <input
+                                    type="text"
+                                    className="w-full p-2 border rounded bg-white text-slate-900 font-mono text-sm"
+                                    value={editingPart.barcode || ''}
+                                    onChange={e => setEditingPart({ ...editingPart, barcode: e.target.value })}
                                 />
                             </div>
                             <div>
