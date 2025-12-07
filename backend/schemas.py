@@ -455,7 +455,9 @@ class CompanyInfoBase(CamelModel):
     state: Optional[str] = None # Estado.
     zip_code: Optional[str] = None # CEP. # Alterado de 'zip' para 'zip_code' para consistência.
     crt: Optional[str] = None # Código de Regime Tributário.
-    environment: Optional[str] = None # Ambiente (production ou homologation).
+    environment: Optional[str] = None # Ambiente (production ou homologation)
+    mercury_username: Optional[str] = None
+    mercury_password: Optional[str] = None.
 
 class CompanyInfoCreate(CompanyInfoBase):
     """

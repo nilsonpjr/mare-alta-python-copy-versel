@@ -32,7 +32,7 @@ router = APIRouter(
 
 from playwright.async_api import async_playwright
 
-async def search_product_playwright(item: str) -> List[Dict[str, str]]:
+async def search_product_playwright(item: str, username: str, password: str) -> List[Dict[str, str]]:
     """
     Pesquisa produtos no Portal Mercury Marine usando Playwright.
     """
@@ -45,8 +45,9 @@ async def search_product_playwright(item: str) -> List[Dict[str, str]]:
             # Login
             login_url = "https://portal.mercurymarine.com.br/epdv/epdv001.asp"
             await page.goto(login_url)
-            await page.fill("input[name='sUsuar']", "31240")
-            await page.fill("input[name='sSenha']", "2105_kasa")
+            # Use credentials from DB
+            await page.fill("input[name='sUsuar']", username)
+            await page.fill("input[name='sSenha']", password)
             await page.press("input[name='sSenha']", "Enter")
             await page.wait_for_load_state()
 
@@ -115,7 +116,7 @@ async def search_product_playwright(item: str) -> List[Dict[str, str]]:
         finally:
             await browser.close()
 
-async def search_warranty_playwright(nro_motor: str) -> Optional[Dict[str, str]]:
+async def search_warranty_playwright(nro_motor: str, username: str, password: str) -> Optional[Dict[str, str]]:
     """
     Busca garantia usando Playwright.
     """
@@ -126,8 +127,9 @@ async def search_warranty_playwright(nro_motor: str) -> Optional[Dict[str, str]]
         try:
             # Login
             await page.goto("https://portal.mercurymarine.com.br/epdv/epdv001.asp")
-            await page.fill("input[name='sUsuar']", "31240")
-            await page.fill("input[name='sSenha']", "2105_kasa")
+            # Use credentials from DB
+            await page.fill("input[name='sUsuar']", username)
+            await page.fill("input[name='sSenha']", password)
             await page.press("input[name='sSenha']", "Enter")
             await page.wait_for_load_state()
             
@@ -190,20 +192,43 @@ async def search_warranty_playwright(nro_motor: str) -> Optional[Dict[str, str]]
 
 # --- ENDPOINTS ---
 
+from database import get_db
+from sqlalchemy.orm import Session
+from fastapi import Depends
+import crud
+
 @router.get("/search/{item}")
-async def search_mercury_product(item: str):
+async def search_mercury_product(
+    item: str,
+    db: Session = Depends(get_db)
+):
     try:
+        # Fetch credentials
+        company = crud.get_company_info(db)
+        if not company or not company.mercury_username or not company.mercury_password:
+             raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Credenciais Mercury não configuradas.")
+
         # Chama a função async diretamente (sem to_thread)
-        results = await search_product_playwright(item)
+        results = await search_product_playwright(item, company.mercury_username, company.mercury_password)
         return {"status": "success", "results": results}
+    except HTTPException:
+        raise
     except Exception as e:
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f"Erro ao buscar produto: {str(e)}")
 
 @router.get("/warranty/{serial}")
-async def get_engine_warranty(serial: str):
+async def get_engine_warranty(
+    serial: str,
+    db: Session = Depends(get_db)
+):
     try:
+        # Fetch credentials
+        company = crud.get_company_info(db)
+        if not company or not company.mercury_username or not company.mercury_password:
+             raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Credenciais Mercury não configuradas.")
+
         # Chama a função async diretamente
-        result = await search_warranty_playwright(serial)
+        result = await search_warranty_playwright(serial, company.mercury_username, company.mercury_password)
         if result:
             return {"status": "success", "data": result}
         else:

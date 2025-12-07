@@ -338,3 +338,7 @@ class CompanyInfo(Base):
     crt = Column(String(10)) # Código de Regime Tributário
     environment = Column(String(20)) # Ambiente de operação (production ou homologation)
 
+    # Integrações
+    mercury_username = Column(String(100))
+    mercury_password = Column(String(100))
+
