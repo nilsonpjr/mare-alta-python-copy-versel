@@ -190,15 +190,15 @@ export const InventoryView: React.FC = () => {
         if (!newPart.name || !newPart.sku || !newPart.price) return;
 
         const part: Part = {
-            id: Date.now().toString(),
+            id: Date.now(),
             name: newPart.name,
             sku: newPart.sku,
-            barcode: newPart.barcode,
+            barcode: newPart.barcode || '',
             quantity: newPart.quantity || 0,
             cost: newPart.cost || 0,
             price: newPart.price,
             minStock: newPart.minStock || 0,
-            location: newPart.location
+            location: newPart.location || ''
         };
 
         const updated = [...parts, part];
@@ -220,7 +220,7 @@ export const InventoryView: React.FC = () => {
                 part.quantity = counted; // Update Stock
 
                 adjustments.push({
-                    id: Date.now().toString() + Math.random(),
+                    id: Date.now() + Math.random(),
                     partId: part.id,
                     type: diff > 0 ? 'ADJUSTMENT_PLUS' : 'ADJUSTMENT_MINUS',
                     quantity: Math.abs(diff),
