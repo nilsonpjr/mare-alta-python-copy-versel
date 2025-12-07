@@ -234,6 +234,7 @@ class PartBase(CamelModel):
     price: float = 0 # Preço de venda.
     min_stock: float = 0 # Estoque mínimo.
     location: Optional[str] = None # Localização no estoque.
+    manufacturer: Optional[str] = None # Fabricante (ex: Mercury).
 
 class PartCreate(PartBase):
     """
@@ -251,12 +252,14 @@ class PartUpdate(CamelModel):
     price: Optional[float] = None
     min_stock: Optional[float] = None
     location: Optional[str] = None
+    manufacturer: Optional[str] = None
 
 class Part(PartBase):
     """
     Schema para representação completa de uma peça.
     """
     id: int # ID único da peça.
+    last_price_updated_at: Optional[datetime] = None # Data última atualização automática.
 
 # --- SERVICE ITEM SCHEMAS ---
 # Esquemas para validação e serialização de dados relacionados a itens de serviço.

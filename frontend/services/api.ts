@@ -290,6 +290,16 @@ export const ApiService = {
         return response.data;
     },
 
+    /**
+     * Sincroniza o preço de uma peça específica com o portal Mercury.
+     * @param partId O ID da peça.
+     * @returns Resultado da sincronização.
+     */
+    syncMercuryPrice: async (partId: number) => {
+        const response = await api.post(`/mercury/sync-price/${partId}`);
+        return response.data;
+    },
+
     // --- TRANSACTIONS (Transações Financeiras) ---
     /**
      * Obtém uma lista de todas as transações financeiras.

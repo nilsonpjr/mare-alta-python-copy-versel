@@ -44,6 +44,7 @@ export const InventoryView: React.FC = () => {
     const [mercurySearchTerm, setMercurySearchTerm] = useState('');
     const [mercuryResults, setMercuryResults] = useState<any[]>([]);
     const [isLoadingMercury, setIsLoadingMercury] = useState(false);
+    const [updateStatus, setUpdateStatus] = useState<Record<number, 'idle' | 'loading' | 'success' | 'error'>>({});
 
     useEffect(() => {
         loadData();
@@ -357,66 +358,51 @@ export const InventoryView: React.FC = () => {
 
     // --- UPDATE PRICES FROM MERCURY API ---
     const handleUpdatePricesFromMercury = async () => {
-        if (!window.confirm(`Atualizar preços de TODAS as peças consultando a API Mercury?\n\nIsso pode levar alguns minutos...`)) {
+        if (!window.confirm(`Atualizar preços de peças Mercury consultando a API?\n\nIsso pode levar alguns minutos...`)) {
             return;
         }
 
         setIsBulkPriceModalOpen(false);
-        const updatedParts = [...parts];
+        // Filtra possíveis peças Mercury (ou sem fabricante definido)
+        const partsToUpdate = parts.filter(p =>
+            !p.manufacturer ||
+            p.manufacturer.toUpperCase().includes('MERCURY')
+        );
+
+        if (partsToUpdate.length === 0) {
+            alert("Nenhuma peça identificada como Mercury.");
+            return;
+        }
+
+        alert(`Iniciando atualização de ${partsToUpdate.length} peças. O status será exibido na tabela.`);
+
         let successCount = 0;
         let errorCount = 0;
 
-        // Show progress
-        for (let i = 0; i < parts.length; i++) {
-            const part = parts[i];
-
+        // Itera sequencialmente para não sobrecarregar
+        for (const part of partsToUpdate) {
+            setUpdateStatus(prev => ({ ...prev, [part.id]: 'loading' }));
             try {
-                // Extract SKU after first dash (remove quantity prefix like "35-")
-                // Example: "35-8M0065104" -> "8M0065104"
-                const skuParts = part.sku.split('-');
-                const mercurySku = skuParts.length > 1 ? skuParts.slice(1).join('-') : part.sku;
-
-                // Search Mercury API by cleaned SKU
-                const response = await ApiService.searchMercuryProduct(mercurySku);
-
-                if (response.status === 'success' && response.results.length > 0) {
-                    const mercuryData = response.results[0];
-
-                    // Parse currency values
-                    const valorCusto = parseCurrency(mercuryData.valorCusto);
-                    const valorTabela = parseCurrency(mercuryData.valorTabela);
-                    let valorVenda = parseCurrency(mercuryData.valorVenda);
-
-                    // Apply 60% markup if valorCusto === valorTabela
-                    if (valorCusto === valorTabela && valorCusto > 0) {
-                        valorVenda = valorCusto * 1.60;
-                    }
-
-                    // Update part
-                    updatedParts[i] = {
-                        ...part,
-                        cost: valorCusto,
-                        price: valorVenda
-                    };
-
+                const result = await ApiService.syncMercuryPrice(part.id);
+                if (result.status === 'success') {
+                    setUpdateStatus(prev => ({ ...prev, [part.id]: 'success' }));
                     successCount++;
-                    console.log(`✅ ${part.sku} (${mercurySku}): Custo=${valorCusto} Venda=${valorVenda}`);
                 } else {
+                    setUpdateStatus(prev => ({ ...prev, [part.id]: 'error' }));
                     errorCount++;
-                    console.log(`⚠️ ${part.sku}: Não encontrado na API Mercury`);
                 }
             } catch (error) {
+                console.error(`Erro ao atualizar peça ${part.sku}:`, error);
+                setUpdateStatus(prev => ({ ...prev, [part.id]: 'error' }));
                 errorCount++;
-                console.error(`❌ ${part.sku}:`, error);
             }
-
-            // Small delay to avoid overwhelming the API
+            // Pequeno delay
             await new Promise(resolve => setTimeout(resolve, 500));
         }
 
-        setParts(updatedParts);
-        StorageService.saveInventory(updatedParts);
-        alert(`Atualização concluída!\n\n✅ ${successCount} peças atualizadas\n⚠️ ${errorCount} não encontradas ou com erro`);
+        // Recarrega dados no final (ou parcial?)
+        loadData();
+        alert(`Atualização concluída!\n\n✅ ${successCount} peças atualizadas\n⚠️ ${errorCount} erros`);
     };
 
     // --- SEARCH HELPERS ---
@@ -530,7 +516,12 @@ export const InventoryView: React.FC = () => {
                                     {filteredParts.map((part) => (
                                         <tr key={part.id} className="hover:bg-slate-50">
                                             <td className="px-6 py-4 font-mono text-slate-500 text-xs">
-                                                <div>{part.sku}</div>
+                                                <div className="flex items-center gap-2">
+                                                    {part.sku}
+                                                    {updateStatus[part.id] === 'loading' && <RefreshCw className="w-3 h-3 animate-spin text-blue-500" />}
+                                                    {updateStatus[part.id] === 'success' && <CheckCircle className="w-3 h-3 text-green-500" title="Preço atualizado com sucesso!" />}
+                                                    {updateStatus[part.id] === 'error' && <X className="w-3 h-3 text-red-500" title="Falha ao atualizar preço" />}
+                                                </div>
                                                 {part.barcode && <div className="text-[10px] flex items-center gap-1"><Barcode className="w-3 h-3" /> {part.barcode}</div>}
                                             </td>
                                             <td className="px-6 py-4 font-medium text-slate-900">{part.name}</td>
@@ -863,6 +854,16 @@ export const InventoryView: React.FC = () => {
                                         onChange={e => setNewPart({ ...newPart, name: e.target.value })}
                                     />
                                 </div>
+                                <div className="col-span-2">
+                                    <label className="block text-xs font-medium text-slate-700 mb-1">Fabricante</label>
+                                    <input
+                                        type="text"
+                                        className="w-full p-2 border rounded bg-white text-slate-900"
+                                        value={newPart.manufacturer || ''}
+                                        placeholder="Ex: Mercury"
+                                        onChange={e => setNewPart({ ...newPart, manufacturer: e.target.value })}
+                                    />
+                                </div>
                                 <div>
                                     <label className="block text-xs font-medium text-slate-700 mb-1">SKU (Código Interno)</label>
                                     <div className="flex gap-2">
@@ -1056,6 +1057,16 @@ export const InventoryView: React.FC = () => {
                                     className="w-full p-2 border rounded bg-white text-slate-900"
                                     value={editingPart.name}
                                     onChange={e => setEditingPart({ ...editingPart, name: e.target.value })}
+                                />
+                            </div>
+                            <div className="col-span-1">
+                                <label className="block text-xs font-medium text-slate-700 mb-1">Fabricante</label>
+                                <input
+                                    type="text"
+                                    className="w-full p-2 border rounded bg-white text-slate-900"
+                                    value={editingPart.manufacturer || ''}
+                                    placeholder="Ex: Mercury"
+                                    onChange={e => setEditingPart({ ...editingPart, manufacturer: e.target.value })}
                                 />
                             </div>
                             <div>

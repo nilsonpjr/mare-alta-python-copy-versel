@@ -115,6 +115,8 @@ export interface Part {
   price: number;
   minStock: number;
   location?: string;
+  manufacturer?: string;
+  lastPriceUpdatedAt?: string;
 }
 
 export interface PartCreate {
@@ -126,6 +128,7 @@ export interface PartCreate {
   price?: number;
   minStock?: number;
   location?: string;
+  manufacturer?: string;
 }
 
 export interface PartUpdate {
@@ -137,6 +140,7 @@ export interface PartUpdate {
   location?: string;
   sku?: string;
   barcode?: string;
+  manufacturer?: string;
 }
 
 export interface StockMovement {

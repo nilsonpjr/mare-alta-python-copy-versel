@@ -237,3 +237,86 @@ async def get_engine_warranty(
         raise
     except Exception as e:
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f"Erro ao buscar garantia: {str(e)}")
+
+# --- HELPER DE PARSING ---
+def parse_brl_currency(value_str: str) -> float:
+    """Converte string de moeda BRL ('1.234,56') para float (1234.56)."""
+    if not value_str:
+        return 0.0
+    try:
+        # Remove caracteres não numéricos exceto , e . (e R$)
+        clean_str = value_str.strip().replace("R$", "").strip()
+        # Remove pontos de milhar
+        clean_str = clean_str.replace(".", "")
+        # Troca vírgula decimal por ponto
+        clean_str = clean_str.replace(",", ".")
+        return float(clean_str)
+    except ValueError:
+        return 0.0
+
+@router.post("/sync-price/{part_id}")
+async def sync_part_price_mercury(
+    part_id: int,
+    db: Session = Depends(get_db),
+    current_user: schemas.User = Depends(auth.get_current_active_user)
+):
+    """
+    Sincroniza o preço de uma peça específica com o portal Mercury.
+    Atualiza Custo e Preço se encontrado.
+    """
+    from datetime import datetime
+    import models
+    
+    # 1. Buscar a peça
+    part = crud.get_part(db, part_id=part_id)
+    if not part:
+        raise HTTPException(status_code=404, detail="Peça não encontrada")
+    
+    # 2. Credenciais
+    company = crud.get_company_info(db)
+    if not company or not company.mercury_username:
+        raise HTTPException(status_code=400, detail="Credenciais Mercury não configuradas")
+    
+    # 3. Buscar no Portal
+    print(f"Sincronizando SKU: {part.sku}")
+    try:
+        results = await search_product_playwright(part.sku, company.mercury_username, company.mercury_password)
+    except Exception as e:
+         raise HTTPException(status_code=500, detail=f"Erro no scraper: {str(e)}")
+    
+    # 4. Processar Resultados
+    matched_data = None
+    for item in results:
+        item_code = item['codigo'].strip()
+        # Comparação flexível mas segura
+        if item_code == part.sku or item_code in part.sku or part.sku in item_code:
+             matched_data = item
+             break
+    
+    if not matched_data:
+        raise HTTPException(status_code=404, detail=f"Produto não encontrado no portal Mercury para SKU {part.sku}")
+    
+    # 5. Atualizar Preços
+    cost = parse_brl_currency(matched_data.get('valorCusto', '0'))
+    price = parse_brl_currency(matched_data.get('valorVenda', '0'))
+    
+    print(f"Atualizando peça {part.id}: Custo {part.cost}->{cost}, Preço {part.price}->{price}")
+    
+    part_update = schemas.PartUpdate(
+        cost=cost,
+        price=price
+    )
+    
+    updated_part = crud.update_part(db, part_id, part_update)
+    
+    updated_part.last_price_updated_at = datetime.utcnow()
+    db.commit()
+    db.refresh(updated_part)
+    
+    return {
+        "status": "success",
+        "part_id": part_id,
+        "new_price": price,
+        "new_cost": cost,
+        "updated_at": updated_part.last_price_updated_at
+    }
