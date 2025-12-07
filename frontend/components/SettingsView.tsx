@@ -36,9 +36,10 @@ export const SettingsView: React.FC = () => {
         try {
             await ApiService.updateCompanyInfo(companyInfo);
             alert("Configurações salvas com sucesso!");
-        } catch (error) {
+        } catch (error: any) {
             console.error("Erro ao salvar configurações:", error);
-            alert("Erro ao salvar configurações.");
+            const msg = error.response?.data?.detail || error.message || "Erro desconhecido";
+            alert(`Erro ao salvar configurações: ${msg}`);
         } finally {
             setLoading(false);
         }

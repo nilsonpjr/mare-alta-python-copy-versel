@@ -123,5 +123,10 @@ def update_company_information(
     Atualiza as informações da empresa. Se não existirem, uma nova entrada é criada.
     Requer autenticação.
     """
-    # Chama a função CRUD para atualizar ou criar as informações da empresa.
-    return crud.update_company_info(db, info)
+    try:
+        print(f"DEBUG: Updating company info with: {info}")
+        # Chama a função CRUD para atualizar ou criar as informações da empresa.
+        return crud.update_company_info(db, info)
+    except Exception as e:
+        print(f"ERROR in update_company_information: {str(e)}")
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f"Erro interno: {str(e)}")
