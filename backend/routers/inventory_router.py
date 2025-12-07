@@ -66,7 +66,7 @@ def create_new_part(
         # Se o SKU já existe, levanta uma exceção HTTP 400 Bad Request.
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="SKU já existe")
     # Chama a função CRUD para criar a peça no banco de dados.
-    return crud.create_part(db=db, part=part)
+    return crud.create_part(db=db, part=part, tenant_id=current_user.tenant_id)
 
 @router.put("/parts/{part_id}", response_model=schemas.Part)
 def update_existing_part(
@@ -115,4 +115,4 @@ def create_stock_movement(
     Requer autenticação.
     """
     # Chama a função CRUD para criar a movimentação no banco de dados.
-    return crud.create_movement(db=db, movement=movement)
+    return crud.create_stock_movement(db=db, movement=movement, user_name=current_user.name, tenant_id=current_user.tenant_id)

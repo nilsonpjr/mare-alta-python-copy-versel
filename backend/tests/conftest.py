@@ -8,10 +8,10 @@ from sqlalchemy.pool import StaticPool
 from fastapi.testclient import TestClient
 from typing import Generator
 
-from database import Base
+from database import Base, get_db as database_get_db
 from main import app
-from dependencies import get_db, get_current_user
-from models import User, Tenant
+from dependencies import get_db as dependencies_get_db
+from models import User, Tenant, UserRole
 import auth
 
 
@@ -45,9 +45,12 @@ def client(db) -> Generator:
         try:
             yield db
         finally:
-            db.close()
+            pass # db connection is handled by db fixture
 
-    app.dependency_overrides[get_db] = override_get_db
+    # Override BOTH get_db definitions to catch all usages
+    app.dependency_overrides[database_get_db] = override_get_db
+    app.dependency_overrides[dependencies_get_db] = override_get_db
+    
     with TestClient(app) as test_client:
         yield test_client
     app.dependency_overrides.clear()
@@ -75,7 +78,7 @@ def test_user(db, test_tenant) -> User:
         name="Test User",
         email="test@example.com",
         hashed_password=hashed_password,
-        role="ADMIN",
+        role=UserRole.ADMIN,
         tenant_id=test_tenant.id
     )
     db.add(user)
@@ -92,7 +95,7 @@ def test_admin_user(db, test_tenant) -> User:
         name="Admin User",
         email="admin@example.com",
         hashed_password=hashed_password,
-        role="ADMIN",
+        role=UserRole.ADMIN,
         tenant_id=test_tenant.id
     )
     db.add(user)

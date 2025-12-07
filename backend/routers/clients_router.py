@@ -38,4 +38,50 @@ def create_new_client(
     Requer autenticação.
     """
     # Chama a função CRUD para criar o cliente no banco de dados.
-    return crud.create_client(db, client)
+    return crud.create_client(db=db, client=client, tenant_id=current_user.tenant_id)
+
+@router.get("/{client_id}", response_model=schemas.Client)
+def get_single_client(
+    client_id: int,
+    db: Session = Depends(get_db),
+    current_user: schemas.User = Depends(auth.get_current_active_user)
+):
+    """
+    Retorna um cliente específico pelo ID.
+    Requer autenticação.
+    """
+    client = crud.get_client(db, client_id=client_id)
+    if not client:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Cliente não encontrado")
+    return client
+
+@router.put("/{client_id}", response_model=schemas.Client)
+def update_existing_client(
+    client_id: int,
+    client: schemas.ClientUpdate, # Usando ClientUpdate
+    db: Session = Depends(get_db),
+    current_user: schemas.User = Depends(auth.get_current_active_user)
+):
+    """
+    Atualiza um cliente existente.
+    Requer autenticação.
+    """
+    updated_client = crud.update_client(db, client_id=client_id, client_update=client)
+    if not updated_client:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Cliente não encontrado")
+    return updated_client
+
+@router.delete("/{client_id}", status_code=status.HTTP_204_NO_CONTENT)
+def delete_existing_client(
+    client_id: int,
+    db: Session = Depends(get_db),
+    current_user: schemas.User = Depends(auth.get_current_active_user)
+):
+    """
+    Remove um cliente.
+    Requer autenticação.
+    """
+    deleted_client = crud.delete_client(db, client_id=client_id)
+    if not deleted_client:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Cliente não encontrado")
+    return None

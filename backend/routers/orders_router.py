@@ -59,7 +59,7 @@ def create_new_service_order(
     Requer autenticação.
     """
     # Chama a função CRUD para criar a ordem de serviço.
-    return crud.create_order(db=db, order=order)
+    return crud.create_order(db=db, order=order, tenant_id=current_user.tenant_id)
 
 @router.put("/{order_id}", response_model=schemas.ServiceOrder)
 def update_existing_service_order(

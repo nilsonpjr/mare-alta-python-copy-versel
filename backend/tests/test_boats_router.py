@@ -1,5 +1,5 @@
 """
-Test boats router - FIXED VERSION
+Test boats router - FIXED VERSION 2
 """
 import pytest
 from fastapi.testclient import TestClient
@@ -16,7 +16,7 @@ class TestBoatsRouter:
         # Create a client first
         owner = Client(
             name="Boat Owner",
-            document="12345678900",  # ✅ CORRIGIDO
+            document="12345678900",
             email="owner@example.com",
             tenant_id=test_tenant.id
         )
@@ -27,10 +27,10 @@ class TestBoatsRouter:
         # Create boats
         for i in range(2):
             boat = Boat(
+                name=f"Boat {i}",
                 model=f"Boat Model {i}",
-                year=2024,
-                registration=f"ABC-123{i}",
-                owner_id=owner.id,
+                hull_id=f"ABC-123{i}", # ✅ CORRIGIDO
+                client_id=owner.id,    # ✅ CORRIGIDO
                 tenant_id=test_tenant.id
             )
             db.add(boat)
@@ -49,7 +49,7 @@ class TestBoatsRouter:
         # Create a client first
         owner = Client(
             name="Boat Owner",
-            document="12345678900",  # ✅ CORRIGIDO
+            document="12345678900",
             email="owner@example.com",
             tenant_id=test_tenant.id
         )
@@ -58,10 +58,10 @@ class TestBoatsRouter:
         db.refresh(owner)
         
         boat_data = {
+            "name": "New Boat",
             "model": "New Boat Model",
-            "year": 2024,
-            "registration": "XYZ-9999",
-            "owner_id": owner.id
+            "hull_id": "XYZ-9999", # ✅ CORRIGIDO
+            "client_id": owner.id   # ✅ CORRIGIDO
         }
         
         response = client.post(
@@ -80,7 +80,7 @@ class TestBoatsRouter:
         
         owner = Client(
             name="Boat Owner",
-            document="12345678900",  # ✅ CORRIGIDO
+            document="12345678900",
             email="owner@example.com",
             tenant_id=test_tenant.id
         )
@@ -89,10 +89,10 @@ class TestBoatsRouter:
         db.refresh(owner)
         
         boat = Boat(
-            model="Specific Boat",
-            year=2024,
-            registration="SPEC-001",
-            owner_id=owner.id,
+            name="Specific Boat",
+            model="Specific Model",
+            hull_id="SPEC-001",    # ✅ CORRIGIDO
+            client_id=owner.id,    # ✅ CORRIGIDO
             tenant_id=test_tenant.id
         )
         db.add(boat)
@@ -103,7 +103,7 @@ class TestBoatsRouter:
         
         assert response.status_code == 200
         data = response.json()
-        assert data["model"] == "Specific Boat"
+        assert data["name"] == "Specific Boat"
     
     def test_update_boat(self, client: TestClient, auth_headers, test_tenant, db):
         """Test updating a boat"""
@@ -111,7 +111,7 @@ class TestBoatsRouter:
         
         owner = Client(
             name="Boat Owner",
-            document="12345678900",  # ✅ CORRIGIDO
+            document="12345678900",
             email="owner@example.com",
             tenant_id=test_tenant.id
         )
@@ -120,9 +120,10 @@ class TestBoatsRouter:
         db.refresh(owner)
         
         boat = Boat(
+            name="Original Boat",
             model="Original Model",
-            year=2023,
-            owner_id=owner.id,
+            hull_id="ORIG-123",
+            client_id=owner.id,
             tenant_id=test_tenant.id
         )
         db.add(boat)
@@ -130,8 +131,8 @@ class TestBoatsRouter:
         db.refresh(boat)
         
         update_data = {
-            "model": "Updated Model",
-            "year": 2024
+            "name": "Updated Boat",
+            "model": "Updated Model"
         }
         
         response = client.put(
@@ -143,6 +144,7 @@ class TestBoatsRouter:
         assert response.status_code == 200
         data = response.json()
         assert data["model"] == "Updated Model"
+        assert data["name"] == "Updated Boat"
     
     def test_unauthorized_access(self, client: TestClient):
         """Test accessing boats without authentication"""

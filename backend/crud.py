@@ -42,7 +42,8 @@ def create_user(db: Session, user: schemas.UserCreate):
         name=user.name,
         hashed_password=hashed_password,
         role=user.role,
-        client_id=user.client_id
+        client_id=user.client_id,
+        tenant_id=1 # Default tenant for new users
     )
     db.add(db_user) # Adiciona o novo usuário à sessão.
     db.commit() # Confirma a transação no banco de dados.
@@ -75,19 +76,50 @@ def get_client(db: Session, client_id: int):
     """
     return db.query(models.Client).filter(models.Client.id == client_id).first()
 
-def create_client(db: Session, client: schemas.ClientCreate):
+def create_client(db: Session, client: schemas.ClientCreate, tenant_id: int):
     """
     Cria um novo cliente no banco de dados.
     Args:
         db (Session): Sessão do banco de dados.
         client (schemas.ClientCreate): Dados do cliente para criação.
+        tenant_id (int): ID do tenant.
     Returns:
         models.Client: O objeto cliente recém-criado.
     """
-    db_client = models.Client(**client.model_dump()) # Cria uma instância do modelo Client a partir do schema.
+    client_data = client.model_dump()
+    db_client = models.Client(**client_data, tenant_id=tenant_id)
     db.add(db_client)
     db.commit()
     db.refresh(db_client)
+    return db_client
+
+def update_client(db: Session, client_id: int, client_update: schemas.ClientCreate): # Usando ClientCreate como update por simplificação, idealmente ClientUpdate
+    """
+    Atualiza um cliente existente.
+    """
+    db_client = get_client(db, client_id)
+    if not db_client:
+        return None
+    
+    update_data = client_update.model_dump(exclude_unset=True)
+    for key, value in update_data.items():
+        setattr(db_client, key, value)
+    
+    db.add(db_client)
+    db.commit()
+    db.refresh(db_client)
+    return db_client
+
+def delete_client(db: Session, client_id: int):
+    """
+    Deleta um cliente.
+    """
+    db_client = get_client(db, client_id)
+    if not db_client:
+        return None
+        
+    db.delete(db_client)
+    db.commit()
     return db_client
 
 # --- MARINA CRUD ---
@@ -146,26 +178,29 @@ def get_boat(db: Session, boat_id: int):
     """
     return db.query(models.Boat).filter(models.Boat.id == boat_id).first()
 
-def create_boat(db: Session, boat: schemas.BoatCreate):
+def create_boat(db: Session, boat: schemas.BoatCreate, tenant_id: int):
     """
-    Cria uma nova embarcação e seus motores associados.
-    Args:
-        db (Session): Sessão do banco de dados.
-        boat (schemas.BoatCreate): Dados da embarcação para criação, incluindo lista de motores.
-    Returns:
-        models.Boat: O objeto embarcação recém-criado com seus motores.
+    Cria uma nova embarcação no banco de dados.
     """
-    boat_data = boat.model_dump(exclude={'engines'}) # Exclui 'engines' pois serão adicionados separadamente.
-    db_boat = models.Boat(**boat_data)
+    # Separa os dados da embarcação dos dados dos motores (se houver).
+    boat_data = boat.model_dump()
+    engines_data = boat_data.pop("engines", [])
+    
+    # Cria a embarcação com o tenant_id
+    db_boat = models.Boat(**boat_data, tenant_id=tenant_id)
     db.add(db_boat)
-    db.flush() # Salva a embarcação para obter seu ID antes de adicionar os motores.
-
-    for engine_data in boat.engines:
-        db_engine = models.Engine(**engine_data.model_dump(), boat_id=db_boat.id)
-        db.add(db_engine)
-
     db.commit()
     db.refresh(db_boat)
+    
+    # Cria os motores associados, se houver.
+    for engine_data in engines_data:
+        db_engine = models.Engine(**engine_data, boat_id=db_boat.id, tenant_id=tenant_id)
+        db.add(db_engine)
+    
+    if engines_data:
+        db.commit()
+        db.refresh(db_boat)
+        
     return db_boat
 
 def update_boat(db: Session, boat_id: int, boat_update: schemas.BoatUpdate):
@@ -247,16 +282,11 @@ def get_part_by_sku(db: Session, sku: str):
     """
     return db.query(models.Part).filter(models.Part.sku == sku).first()
 
-def create_part(db: Session, part: schemas.PartCreate):
+def create_part(db: Session, part: schemas.PartCreate, tenant_id: int):
     """
-    Cria uma nova peça no banco de dados.
-    Args:
-        db (Session): Sessão do banco de dados.
-        part (schemas.PartCreate): Dados da peça para criação.
-    Returns:
-        models.Part: O objeto peça recém-criada.
+    Cria uma nova peça no inventário.
     """
-    db_part = models.Part(**part.model_dump())
+    db_part = models.Part(**part.model_dump(), tenant_id=tenant_id)
     db.add(db_part)
     db.commit()
     db.refresh(db_part)
@@ -320,16 +350,11 @@ def get_order(db: Session, order_id: int):
         joinedload(models.ServiceOrder.notes)
     ).filter(models.ServiceOrder.id == order_id).first()
 
-def create_order(db: Session, order: schemas.ServiceOrderCreate):
+def create_order(db: Session, order: schemas.ServiceOrderCreate, tenant_id: int):
     """
-    Cria uma nova ordem de serviço no banco de dados.
-    Args:
-        db (Session): Sessão do banco de dados.
-        order (schemas.ServiceOrderCreate): Dados da ordem de serviço para criação.
-    Returns:
-        models.ServiceOrder: O objeto ordem de serviço recém-criado.
+    Cria uma nova ordem de serviço.
     """
-    db_order = models.ServiceOrder(**order.model_dump())
+    db_order = models.ServiceOrder(**order.model_dump(), tenant_id=tenant_id)
     db.add(db_order)
     db.commit()
     db.refresh(db_order)
@@ -496,17 +521,30 @@ def get_movements(db: Session, part_id: Optional[int] = None):
         query = query.filter(models.StockMovement.part_id == part_id)
     return query.all()
 
-def create_movement(db: Session, movement: schemas.StockMovementCreate):
+def create_stock_movement(db: Session, movement: schemas.StockMovementCreate, user_name: str, tenant_id: int):
     """
-    Cria um novo movimento de estoque no banco de dados.
-    Args:
-        db (Session): Sessão do banco de dados.
-        movement (schemas.StockMovementCreate): Dados do movimento de estoque para criação.
-    Returns:
-        models.StockMovement: O objeto movimento de estoque recém-criado.
+    Registra um movimento de estoque e atualiza a quantidade da peça.
     """
-    db_movement = models.StockMovement(**movement.model_dump())
+    # 1. Cria o registro de movimento
+    movement_data = movement.model_dump()
+    if 'user' in movement_data:
+        del movement_data['user']
+    db_movement = models.StockMovement(**movement_data, user=user_name, tenant_id=tenant_id) # Campo user é string (nome)
     db.add(db_movement)
+    
+    # 2. Atualiza a quantidade da peça
+    part = get_part(db, movement.part_id)
+    if part:
+        if movement.type == models.MovementType.IN_INVOICE or \
+           movement.type == models.MovementType.RETURN_OS or \
+           movement.type == models.MovementType.ADJUSTMENT_PLUS:
+            part.quantity += movement.quantity
+        elif movement.type == models.MovementType.OUT_OS or \
+             movement.type == models.MovementType.ADJUSTMENT_MINUS:
+            part.quantity -= movement.quantity
+        
+        db.add(part)
+    
     db.commit()
     db.refresh(db_movement)
     return db_movement

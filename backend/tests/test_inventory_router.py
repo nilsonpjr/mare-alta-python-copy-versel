@@ -178,7 +178,7 @@ class TestInventoryRouter:
         movement_data = {
             "part_id": part.id,
             "quantity": 5.0,
-            "movement_type": "OUT_OS",
+            "type": "OUT_OS", # Correct field name
             "description": "Used in service"
         }
         

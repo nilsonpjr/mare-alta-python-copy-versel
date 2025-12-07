@@ -1,5 +1,5 @@
 """
-Test authentication router
+Test authentication router - FIXED VERSION
 """
 import pytest
 from fastapi.testclient import TestClient
@@ -15,7 +15,7 @@ class TestAuthRouter:
         response = client.post(
             "/api/auth/login",
             data={
-                "username": "test@example.com",
+                "username": test_user.email, # ✅ Username is email
                 "password": "testpassword123"
             }
         )
@@ -30,7 +30,7 @@ class TestAuthRouter:
         response = client.post(
             "/api/auth/login",
             data={
-                "username": "test@example.com",
+                "username": test_user.email,
                 "password": "wrongpassword"
             }
         )
@@ -48,12 +48,6 @@ class TestAuthRouter:
         )
         
         assert response.status_code == 401
-    
-    def test_login_inactive_user(self, client: TestClient, test_user, db):
-        """Test login with inactive user - skipped as model doesn't have is_active"""
-        # Note: Current User model doesn't have is_active field
-        # This test is placeholder for future implementation
-        pass
     
     def test_get_current_user(self, client: TestClient, auth_headers, test_user):
         """Test getting current user info"""
@@ -79,18 +73,29 @@ class TestAuthRouter:
         
         assert response.status_code == 401
     
-    def test_register_user(self, client: TestClient, test_tenant):
+    def test_register_user(self, client: TestClient, test_tenant, db):
         """Test user registration"""
+        from models import UserRole # Import Enum
+        
+        # Ensure tenant exists (created by fixture)
+        
         response = client.post(
             "/api/auth/register",
             json={
-                "username": "newuser",
                 "email": "newuser@example.com",
-                "password": "newpassword123",
-                "full_name": "New User"
+                "name": "New User",
+                "role": "CLIENT", # Pydantic converts string to Enum
+                "password": "newpassword123"
             }
         )
         
-        # Registration might be disabled or require specific permissions
-        # Adjust assertion based on your implementation
-        assert response.status_code in [200, 201, 403, 404]
+        # Pode falhar se tenant_id for obrigatório e não inferido
+        if response.status_code == 422:
+             print(response.json())
+        
+        assert response.status_code in [200, 201]
+        data = response.json()
+        assert data["email"] == "newuser@example.com"
+        
+        # Cleanup
+        # (Rollback is handled by db fixture usually, but good to be safe)

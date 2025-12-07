@@ -89,6 +89,17 @@ class ClientCreate(ClientBase):
     """
     pass
 
+class ClientUpdate(CamelModel):
+    """
+    Schema para atualização de um cliente. Todos os campos são opcionais.
+    """
+    name: Optional[str] = None
+    document: Optional[str] = None
+    phone: Optional[str] = None
+    email: Optional[str] = None
+    address: Optional[str] = None
+    type: Optional[str] = None
+
 class Client(ClientBase):
     """
     Schema para representação completa de um cliente.

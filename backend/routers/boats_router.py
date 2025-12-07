@@ -39,7 +39,7 @@ def create_new_boat(
     Requer autenticação.
     """
     # Chama a função CRUD para criar a embarcação no banco de dados.
-    return crud.create_boat(db, boat)
+    return crud.create_boat(db, boat, tenant_id=current_user.tenant_id)
 
 @router.put("/{boat_id}", response_model=schemas.Boat)
 def update_existing_boat(
