@@ -628,30 +628,32 @@ def delete_model(db: Session, model_id: int):
         db.commit()
     return db_model
 
-def get_company_info(db: Session):
+def get_company_info(db: Session, tenant_id: int):
     """
-    Retorna as informações da empresa. Como geralmente há apenas uma entrada,
-    ela retorna a primeira encontrada.
+    Retorna as informações da empresa filtrando pelo tenant_id.
     Args:
         db (Session): Sessão do banco de dados.
+        tenant_id (int): ID do tenant.
     Returns:
         models.CompanyInfo: O objeto com as informações da empresa, ou None.
     """
-    return db.query(models.CompanyInfo).first()
+    return db.query(models.CompanyInfo).filter(models.CompanyInfo.tenant_id == tenant_id).first()
 
-def update_company_info(db: Session, info: schemas.CompanyInfoCreate):
+def update_company_info(db: Session, info: schemas.CompanyInfoCreate, tenant_id: int):
     """
-    Atualiza as informações da empresa. Se não existirem informações, uma nova entrada é criada.
+    Atualiza as informações da empresa para o tenant específico.
+    Se não existirem informações, uma nova entrada é criada associada ao tenant.
     Args:
         db (Session): Sessão do banco de dados.
-        info (schemas.CompanyInfoCreate): Dados para atualização das informações da empresa.
+        info (schemas.CompanyInfoCreate): Dados para atualização.
+        tenant_id (int): ID do tenant.
     Returns:
-        models.CompanyInfo: O objeto com as informações da empresa atualizado.
+        models.CompanyInfo: O objeto atualizado.
     """
-    db_info = db.query(models.CompanyInfo).first()
+    db_info = get_company_info(db, tenant_id)
     if not db_info:
         # Se não houver informações da empresa, cria uma nova.
-        db_info = models.CompanyInfo()
+        db_info = models.CompanyInfo(tenant_id=tenant_id)
         db.add(db_info)
 
     # Atualiza os atributos do objeto do banco de dados com os dados do schema.

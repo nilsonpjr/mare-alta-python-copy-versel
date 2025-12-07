@@ -348,6 +348,7 @@ class CompanyInfo(Base):
     __tablename__ = "company_info"
     
     id = Column(Integer, primary_key=True, index=True)
+    tenant_id = Column(Integer, ForeignKey("tenants.id"), nullable=False, index=True) # ID do tenant
     company_name = Column(String(200)) # Razão social da empresa
     trade_name = Column(String(200)) # Nome fantasia da empresa
     cnpj = Column(String(50)) # CNPJ da empresa

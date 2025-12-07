@@ -55,6 +55,7 @@ class User(UserBase):
     Inclui o 'id' gerado pelo banco de dados.
     """
     id: int # ID único do usuário.
+    tenant_id: int # ID do tenant.
 
 class Token(CamelModel):
     """

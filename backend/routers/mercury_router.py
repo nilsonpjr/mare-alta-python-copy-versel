@@ -202,11 +202,12 @@ import crud
 @router.get("/search/{item}")
 async def search_mercury_product(
     item: str,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    current_user: schemas.User = Depends(auth.get_current_active_user)
 ):
     try:
         # Fetch credentials
-        company = crud.get_company_info(db)
+        company = crud.get_company_info(db, tenant_id=current_user.tenant_id)
         if not company or not company.mercury_username or not company.mercury_password:
              raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Credenciais Mercury não configuradas.")
 
@@ -221,11 +222,12 @@ async def search_mercury_product(
 @router.get("/warranty/{serial}")
 async def get_engine_warranty(
     serial: str,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    current_user: schemas.User = Depends(auth.get_current_active_user)
 ):
     try:
         # Fetch credentials
-        company = crud.get_company_info(db)
+        company = crud.get_company_info(db, tenant_id=current_user.tenant_id)
         if not company or not company.mercury_username or not company.mercury_password:
              raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Credenciais Mercury não configuradas.")
 
@@ -269,15 +271,15 @@ async def sync_part_price_mercury(
     from datetime import datetime
     import models
     
-    # 1. Buscar a peça
+    # 1. Fetch credentials
+    company = crud.get_company_info(db, tenant_id=current_user.tenant_id)
+    if not company or not company.mercury_username or not company.mercury_password:
+        raise HTTPException(status_code=400, detail="Credenciais Mercury não configuradas")
+
+    # 2. Buscar a peça
     part = crud.get_part(db, part_id=part_id)
     if not part:
         raise HTTPException(status_code=404, detail="Peça não encontrada")
-    
-    # 2. Credenciais
-    company = crud.get_company_info(db)
-    if not company or not company.mercury_username:
-        raise HTTPException(status_code=400, detail="Credenciais Mercury não configuradas")
     
     # 3. Buscar no Portal
     print(f"Sincronizando SKU: {part.sku}")

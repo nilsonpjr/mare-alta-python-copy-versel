@@ -111,7 +111,7 @@ def get_company_information(
     Requer autenticação.
     """
     # Chama a função CRUD para obter as informações da empresa.
-    return crud.get_company_info(db)
+    return crud.get_company_info(db, tenant_id=current_user.tenant_id)
 
 @router.put("/company", response_model=schemas.CompanyInfo)
 def update_company_information(
@@ -124,9 +124,9 @@ def update_company_information(
     Requer autenticação.
     """
     try:
-        print(f"DEBUG: Updating company info with: {info}")
+        print(f"DEBUG: Updating company info with: {info} for tenant {current_user.tenant_id}")
         # Chama a função CRUD para atualizar ou criar as informações da empresa.
-        return crud.update_company_info(db, info)
+        return crud.update_company_info(db, info, tenant_id=current_user.tenant_id)
     except Exception as e:
         print(f"ERROR in update_company_information: {str(e)}")
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f"Erro interno: {str(e)}")
