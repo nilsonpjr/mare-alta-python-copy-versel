@@ -355,3 +355,8 @@ export interface FiscalDataPayload {
   serviceValue?: number; // For NFS-e
   serviceDesc?: string; // For NFS-e
 }
+
+export interface SystemConfig {
+  boatManufacturers: { [key: string]: string[] };
+  engineManufacturers: { [key: string]: string[] };
+}

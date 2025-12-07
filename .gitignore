@@ -5,6 +5,7 @@
 .venv/
 .env
 /copy-of-copy-of-mare-alta-náutica---erp
+/backend/mercury_deploy
 # Python
 __pycache__/
 *.pyc
