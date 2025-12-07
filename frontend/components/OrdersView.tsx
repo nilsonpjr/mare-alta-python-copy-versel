@@ -792,467 +792,473 @@ export const OrdersView: React.FC<OrdersViewProps> = ({ role }) => {
                                 </div>
 
                                 <div className="flex gap-2 overflow-x-auto pb-2 lg:pb-0">
-                                </button>
-                            )}
-
-                                {/* WARRANTY CHECK BUTTON */}
-                                {selectedOrder && boats.find(b => b.id === selectedOrder.boatId)?.engines.find(e => e.id === selectedOrder.engineId) && (
-                                    <button
-                                        onClick={() => {
-                                            const boat = boats.find(b => b.id === selectedOrder.boatId);
-                                            const engine = boat?.engines.find(e => e.id === selectedOrder.engineId);
-                                            if (engine && engine.serialNumber) {
-                                                window.open(`https://www.mercurymarine.com/en/us/parts-and-service/warranty-coverage/?serial=${engine.serialNumber}`, '_blank');
-                                            } else {
-                                                alert("Motor ou número de série não encontrado.");
-                                            }
-                                        }}
-                                        className="p-2 text-white bg-slate-800 border border-slate-900 rounded hover:bg-slate-700 flex-shrink-0 flex items-center gap-2 px-3"
-                                        title="Verificar Garantia Mercury"
-                                    >
-                                        <Search className="w-4 h-4" />
-                                        <span className="text-xs font-bold hidden lg:inline">Check Garantia</span>
+                                    <button onClick={sendWhatsApp} className="p-2 text-green-600 border border-green-200 bg-green-50 rounded hover:bg-green-100 flex-shrink-0" title="WhatsApp">
+                                        <MessageCircle className="w-5 h-5" />
                                     </button>
-                                )}
-
-                                {/* Actions Logic */}
-                                {role === UserRole.ADMIN && !isReadOnly && (
-                                    <button
-                                        onClick={() => handleStatusChange(selectedOrder.id, OSStatus.COMPLETED)}
-                                        className="px-4 py-2 bg-emerald-600 text-white rounded font-medium flex gap-2 items-center flex-shrink-0 text-sm whitespace-nowrap"
-                                    >
-                                        <CheckCircle className="w-4 h-4" /> Concluir & Baixar
-                                    </button>
-                                )}
-
-                                {role === UserRole.ADMIN && selectedOrder.status === OSStatus.COMPLETED && (
-                                    <button
-                                        onClick={() => handleReopenOrder(selectedOrder.id)}
-                                        className="px-4 py-2 bg-amber-100 text-amber-800 border border-amber-200 rounded font-medium flex gap-2 items-center flex-shrink-0 text-sm whitespace-nowrap hover:bg-amber-200"
-                                    >
-                                        <Unlock className="w-4 h-4" /> Reabrir (Estornar)
-                                    </button>
-                                )}
-
-                                {isTechnician && selectedOrder.status === OSStatus.IN_PROGRESS && (
-                                    <button
-                                        onClick={() => handleStatusChange(selectedOrder.id, OSStatus.PENDING)}
-                                        className="px-4 py-2 bg-amber-500 text-white rounded font-medium flex gap-2 items-center flex-shrink-0 text-sm whitespace-nowrap"
-                                    >
-                                        <Clock className="w-4 h-4" /> Aprovação
-                                    </button>
-                                )}
-
-                                {!isReadOnly && role === UserRole.ADMIN && (
-                                    <button
-                                        onClick={() => handleStatusChange(selectedOrder.id, OSStatus.CANCELED)}
-                                        className="px-4 py-2 bg-slate-100 text-slate-500 hover:text-red-600 rounded font-medium flex gap-2 items-center flex-shrink-0 text-sm whitespace-nowrap"
-                                    >
-                                        <Ban className="w-4 h-4" /> Cancelar
-                                    </button>
-                                )}
-                            </div>
-                        </div>
-
-                    {isReadOnly && (
-                        <div className="bg-slate-100 p-2 text-center text-xs text-slate-500 font-medium border-b border-slate-200">
-                            Esta ordem está fechada. Para editar, é necessário reabrí-la (apenas Admin).
-                        </div>
-                    )}
-
-                    {/* Tabs */}
-                    <div className="flex border-b border-slate-200 px-4 lg:px-6 overflow-x-auto bg-white no-scrollbar">
-                        {[
-                            { id: 'details', label: 'Detalhes', icon: FileText },
-                            { id: 'checklist', label: 'Checklist', icon: CheckSquare },
-                            ...(isTechnician || role === UserRole.ADMIN ? [{ id: 'report', label: 'Relatório', icon: Clipboard }] : []),
-                            { id: 'media', label: 'Fotos', icon: Camera },
-                            ...(!isTechnician ? [
-                                { id: 'parts', label: 'Itens & Peças', icon: Search },
-                                { id: 'profit', label: 'Análise de Lucro', icon: DollarSign }
-                            ] : []),
-                        ].map(tab => (
-                            <button
-                                key={tab.id}
-                                onClick={() => setActiveTab(tab.id as any)}
-                                className={`flex items-center gap-2 px-4 py-3 text-sm font-medium border-b-2 transition-colors whitespace-nowrap ${activeTab === tab.id ? 'border-blue-500 text-blue-600' : 'border-transparent text-slate-500 hover:text-slate-700'}`}
-                            >
-                                <tab.icon className="w-4 h-4" /> {tab.label}
-                            </button>
-                        ))}
-                    </div>
-
-                    {/* Content */}
-                    <div className="flex-1 overflow-y-auto p-4 lg:p-6 pb-20 lg:pb-6">
-                        {activeTab === 'details' && (
-                            <div className="space-y-6">
-                                <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-                                    <div className="bg-slate-50 p-4 rounded border">
-                                        <label className="text-xs font-bold text-slate-500 uppercase flex items-center gap-1 mb-2">
-                                            <User className="w-4 h-4" /> Técnico Responsável
-                                        </label>
-                                        <input
-                                            className="w-full p-2 border rounded bg-white text-slate-900 disabled:bg-slate-100 disabled:text-slate-500"
-                                            placeholder="Nome do Técnico"
-                                            value={selectedOrder.technicianName || ''}
-                                            onChange={e => saveOrderUpdate({ ...selectedOrder, technicianName: e.target.value })}
-                                            disabled={isTechnician || isReadOnly}
-                                        />
-                                    </div>
-                                    <div className="bg-slate-50 p-4 rounded border">
-                                        <label className="text-xs font-bold text-slate-500 uppercase flex items-center gap-1 mb-2">
-                                            <Clock className="w-4 h-4" /> Registro de Tempo
-                                        </label>
-                                        <div className="flex gap-2">
-                                            <button
-                                                onClick={() => handleTimeLog('START')}
-                                                disabled={isTimerRunning || isReadOnly}
-                                                className={`flex-1 py-2 rounded text-sm font-bold transition-colors ${isTimerRunning || isReadOnly ? 'bg-slate-300 text-slate-500 cursor-not-allowed' : 'bg-green-600 text-white hover:bg-green-700'}`}
-                                            >
-                                                Check-in
-                                            </button>
-                                            <button
-                                                onClick={() => handleTimeLog('STOP')}
-                                                disabled={!isTimerRunning || isReadOnly}
-                                                className={`flex-1 py-2 rounded text-sm font-bold transition-colors ${!isTimerRunning || isReadOnly ? 'bg-slate-300 text-slate-500 cursor-not-allowed' : 'bg-red-600 text-white hover:bg-red-700'}`}
-                                            >
-                                                Parar
-                                            </button>
-                                        </div>
-                                        {isTimerRunning && (
-                                            <div className="mt-2 text-xs text-green-600 font-bold flex items-center gap-1 animate-pulse">
-                                                <div className="w-2 h-2 rounded-full bg-green-600"></div>
-                                                Em andamento
-                                            </div>
-                                        )}
-                                    </div>
-                                </div>
-
-                                <div className="bg-white p-4 border rounded-lg">
-                                    <h3 className="font-bold mb-2">Descrição do Problema</h3>
-                                    <textarea
-                                        className="w-full p-2 border rounded bg-white text-slate-900 h-32 lg:h-24 text-base disabled:bg-slate-50"
-                                        value={selectedOrder.description}
-                                        onChange={(e) => saveOrderUpdate({ ...selectedOrder, description: e.target.value })}
-                                        disabled={isTechnician || isReadOnly}
-                                    />
-                                    {!isReadOnly && (
-                                        <button
-                                            onClick={runAiDiagnosis}
-                                            disabled={isAnalyzing}
-                                            className="mt-4 lg:mt-2 w-full lg:w-auto px-4 py-2 border border-purple-200 bg-purple-50 rounded text-sm text-purple-600 font-bold flex justify-center lg:justify-start items-center gap-2 hover:bg-purple-100"
-                                        >
-                                            <BrainCircuit className="w-4 h-4" /> {isAnalyzing ? 'Analisando...' : 'Gerar Diagnóstico IA'}
+                                    {!isTechnician && (
+                                        <button onClick={() => window.print()} className="p-2 text-slate-400 border rounded hover:bg-slate-50 flex-shrink-0">
+                                            <Printer className="w-5 h-5" />
                                         </button>
                                     )}
-                                    {aiAnalysis && (
-                                        <div className="mt-4 p-4 bg-purple-50 rounded border border-purple-100 text-sm" dangerouslySetInnerHTML={{ __html: aiAnalysis }} />
+
+                                    {/* WARRANTY CHECK BUTTON */}
+                                    {selectedOrder && boats.find(b => b.id === selectedOrder.boatId)?.engines.find(e => e.id === selectedOrder.engineId) && (
+                                        <button
+                                            onClick={() => {
+                                                const boat = boats.find(b => b.id === selectedOrder.boatId);
+                                                const engine = boat?.engines.find(e => e.id === selectedOrder.engineId);
+                                                if (engine && engine.serialNumber) {
+                                                    window.open(`https://www.mercurymarine.com/en/us/parts-and-service/warranty-coverage/?serial=${engine.serialNumber}`, '_blank');
+                                                } else {
+                                                    alert("Motor ou número de série não encontrado.");
+                                                }
+                                            }}
+                                            className="p-2 text-white bg-slate-800 border border-slate-900 rounded hover:bg-slate-700 flex-shrink-0 flex items-center gap-2 px-3"
+                                            title="Verificar Garantia Mercury"
+                                        >
+                                            <Search className="w-4 h-4" />
+                                            <span className="text-xs font-bold hidden lg:inline">Check Garantia</span>
+                                        </button>
+                                    )}
+
+                                    {/* Actions Logic */}
+                                    {role === UserRole.ADMIN && !isReadOnly && (
+                                        <button
+                                            onClick={() => handleStatusChange(selectedOrder.id, OSStatus.COMPLETED)}
+                                            className="px-4 py-2 bg-emerald-600 text-white rounded font-medium flex gap-2 items-center flex-shrink-0 text-sm whitespace-nowrap"
+                                        >
+                                            <CheckCircle className="w-4 h-4" /> Concluir & Baixar
+                                        </button>
+                                    )}
+
+                                    {role === UserRole.ADMIN && selectedOrder.status === OSStatus.COMPLETED && (
+                                        <button
+                                            onClick={() => handleReopenOrder(selectedOrder.id)}
+                                            className="px-4 py-2 bg-amber-100 text-amber-800 border border-amber-200 rounded font-medium flex gap-2 items-center flex-shrink-0 text-sm whitespace-nowrap hover:bg-amber-200"
+                                        >
+                                            <Unlock className="w-4 h-4" /> Reabrir (Estornar)
+                                        </button>
+                                    )}
+
+                                    {isTechnician && selectedOrder.status === OSStatus.IN_PROGRESS && (
+                                        <button
+                                            onClick={() => handleStatusChange(selectedOrder.id, OSStatus.PENDING)}
+                                            className="px-4 py-2 bg-amber-500 text-white rounded font-medium flex gap-2 items-center flex-shrink-0 text-sm whitespace-nowrap"
+                                        >
+                                            <Clock className="w-4 h-4" /> Aprovação
+                                        </button>
+                                    )}
+
+                                    {!isReadOnly && role === UserRole.ADMIN && (
+                                        <button
+                                            onClick={() => handleStatusChange(selectedOrder.id, OSStatus.CANCELED)}
+                                            className="px-4 py-2 bg-slate-100 text-slate-500 hover:text-red-600 rounded font-medium flex gap-2 items-center flex-shrink-0 text-sm whitespace-nowrap"
+                                        >
+                                            <Ban className="w-4 h-4" /> Cancelar
+                                        </button>
                                     )}
                                 </div>
                             </div>
-                        )}
 
-                        {activeTab === 'checklist' && (
-                            <div>
-                                {!isReadOnly && (
-                                    <div className="flex flex-col lg:flex-row gap-2 mb-4">
-                                        <button onClick={() => loadChecklistTemplate('REVISAO_100')} className="px-3 py-2 lg:py-1 bg-slate-100 hover:bg-slate-200 rounded text-sm border">Carregar Revisão 100h</button>
-                                        <button onClick={() => loadChecklistTemplate('ENTREGA_TECNICA')} className="px-3 py-2 lg:py-1 bg-slate-100 hover:bg-slate-200 rounded text-sm border">Carregar Entrega Técnica</button>
-                                    </div>
-                                )}
-                                <div className="space-y-2">
-                                    {!selectedOrder.checklist || selectedOrder.checklist.length === 0 ? (
-                                        <p className="text-slate-400 italic">Nenhum checklist ativo.</p>
-                                    ) : selectedOrder.checklist.map(item => (
-                                        <div
-                                            key={item.id}
-                                            className={`flex items-center gap-3 p-3 border rounded ${isReadOnly ? 'opacity-80' : 'hover:bg-slate-50 cursor-pointer'}`}
-                                            onClick={() => toggleChecklistItem(item.id)}
-                                        >
-                                            <div className={`w-6 h-6 lg:w-5 lg:h-5 flex-shrink-0 rounded border flex items-center justify-center ${item.checked ? 'bg-green-500 border-green-600 text-white' : 'bg-white border-slate-300'}`}>
-                                                {item.checked && <CheckCircle className="w-4 h-4 lg:w-3 lg:h-3" />}
+                            {isReadOnly && (
+                                <div className="bg-slate-100 p-2 text-center text-xs text-slate-500 font-medium border-b border-slate-200">
+                                    Esta ordem está fechada. Para editar, é necessário reabrí-la (apenas Admin).
+                                </div>
+                            )}
+
+                            {/* Tabs */}
+                            <div className="flex border-b border-slate-200 px-4 lg:px-6 overflow-x-auto bg-white no-scrollbar">
+                                {[
+                                    { id: 'details', label: 'Detalhes', icon: FileText },
+                                    { id: 'checklist', label: 'Checklist', icon: CheckSquare },
+                                    ...(isTechnician || role === UserRole.ADMIN ? [{ id: 'report', label: 'Relatório', icon: Clipboard }] : []),
+                                    { id: 'media', label: 'Fotos', icon: Camera },
+                                    ...(!isTechnician ? [
+                                        { id: 'parts', label: 'Itens & Peças', icon: Search },
+                                        { id: 'profit', label: 'Análise de Lucro', icon: DollarSign }
+                                    ] : []),
+                                ].map(tab => (
+                                    <button
+                                        key={tab.id}
+                                        onClick={() => setActiveTab(tab.id as any)}
+                                        className={`flex items-center gap-2 px-4 py-3 text-sm font-medium border-b-2 transition-colors whitespace-nowrap ${activeTab === tab.id ? 'border-blue-500 text-blue-600' : 'border-transparent text-slate-500 hover:text-slate-700'}`}
+                                    >
+                                        <tab.icon className="w-4 h-4" /> {tab.label}
+                                    </button>
+                                ))}
+                            </div>
+
+                            {/* Content */}
+                            <div className="flex-1 overflow-y-auto p-4 lg:p-6 pb-20 lg:pb-6">
+                                {activeTab === 'details' && (
+                                    <div className="space-y-6">
+                                        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                                            <div className="bg-slate-50 p-4 rounded border">
+                                                <label className="text-xs font-bold text-slate-500 uppercase flex items-center gap-1 mb-2">
+                                                    <User className="w-4 h-4" /> Técnico Responsável
+                                                </label>
+                                                <input
+                                                    className="w-full p-2 border rounded bg-white text-slate-900 disabled:bg-slate-100 disabled:text-slate-500"
+                                                    placeholder="Nome do Técnico"
+                                                    value={selectedOrder.technicianName || ''}
+                                                    onChange={e => saveOrderUpdate({ ...selectedOrder, technicianName: e.target.value })}
+                                                    disabled={isTechnician || isReadOnly}
+                                                />
                                             </div>
-                                            <span className={item.checked ? 'text-slate-500 line-through' : 'text-slate-800'}>{item.label}</span>
-                                        </div>
-                                    ))}
-                                </div>
-                            </div>
-                        )}
-
-                        {activeTab === 'report' && (
-                            <div className="space-y-6">
-                                <div className="bg-amber-50 p-4 rounded border border-amber-100">
-                                    <div className="flex items-center gap-2 mb-2 text-amber-800 font-bold">
-                                        <AlertTriangle className="w-5 h-5" /> Estado da Embarcação
-                                    </div>
-                                    <textarea
-                                        className="w-full p-2 border rounded bg-white text-slate-900 h-24 text-sm disabled:bg-slate-50"
-                                        placeholder="Ex: Casco com riscos na proa, estofamento rasgado, porão sujo..."
-                                        value={selectedOrder.boatStatus || ''}
-                                        onChange={e => saveOrderUpdate({ ...selectedOrder, boatStatus: e.target.value })}
-                                        disabled={isReadOnly}
-                                    />
-                                </div>
-
-                                <div className="bg-slate-50 p-4 rounded border border-slate-200">
-                                    <div className="flex items-center gap-2 mb-2 text-slate-800 font-bold">
-                                        <AlertOctagon className="w-5 h-5" /> Estado dos Motores
-                                    </div>
-                                    <textarea
-                                        className="w-full p-2 border rounded bg-white text-slate-900 h-24 text-sm disabled:bg-slate-50"
-                                        placeholder="Ex: Vazamento de óleo na rabeta, oxidação nos terminais..."
-                                        value={selectedOrder.engineStatus || ''}
-                                        onChange={e => saveOrderUpdate({ ...selectedOrder, engineStatus: e.target.value })}
-                                        disabled={isReadOnly}
-                                    />
-                                </div>
-
-                                <div className="bg-blue-50 p-4 rounded border border-blue-100">
-                                    <div className="flex items-center gap-2 mb-2 text-blue-800 font-bold">
-                                        <FileText className="w-5 h-5" /> Observações do Serviço
-                                    </div>
-                                    <textarea
-                                        className="w-full p-2 border rounded bg-white text-slate-900 h-32 text-sm disabled:bg-slate-50"
-                                        placeholder="Descreva o que foi realizado, dificuldades encontradas..."
-                                        value={selectedOrder.technicianNotes || ''}
-                                        onChange={e => saveOrderUpdate({ ...selectedOrder, technicianNotes: e.target.value })}
-                                        disabled={isReadOnly}
-                                    />
-                                </div>
-                            </div>
-                        )}
-
-                        {activeTab === 'media' && (
-                            <div>
-                                {!isReadOnly && (
-                                    <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-6">
-                                        {[
-                                            { type: 'HOUR_METER', label: 'Horímetro', color: 'bg-blue-100 text-blue-700' },
-                                            { type: 'SERIAL_NUMBER', label: 'Nº Série', color: 'bg-slate-100 text-slate-700' },
-                                            { type: 'PART_REPLACED', label: 'Peça Trocada', color: 'bg-red-100 text-red-700' },
-                                            { type: 'SERVICE', label: 'Serviço', color: 'bg-green-100 text-green-700' },
-                                        ].map((btn) => (
-                                            <button
-                                                key={btn.type}
-                                                onClick={() => triggerFileUpload(btn.type as AttachmentType)}
-                                                className={`p-3 rounded-lg flex flex-col items-center justify-center gap-2 border hover:brightness-95 transition-all ${btn.color}`}
-                                            >
-                                                <Camera className="w-6 h-6" />
-                                                <span className="text-[10px] lg:text-xs font-bold uppercase text-center">{btn.label}</span>
-                                            </button>
-                                        ))}
-                                    </div>
-                                )}
-
-                                <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-                                    {!selectedOrder.attachments || selectedOrder.attachments.length === 0 ? (
-                                        <p className="col-span-full text-slate-400 italic text-center py-8 bg-slate-50 border rounded-lg border-dashed">
-                                            Nenhuma foto anexada.
-                                        </p>
-                                    ) : (
-                                        selectedOrder.attachments.map((att, idx) => (
-                                            <div key={idx} className="relative group rounded-lg overflow-hidden border border-slate-200">
-                                                <img src={att.url} alt={att.description} className="w-full h-32 object-cover" />
-                                                <div className="absolute bottom-0 left-0 right-0 bg-black/60 text-white p-2 text-xs">
-                                                    <span className="font-bold block">{att.type}</span>
-                                                </div>
-                                                {!isReadOnly && (
+                                            <div className="bg-slate-50 p-4 rounded border">
+                                                <label className="text-xs font-bold text-slate-500 uppercase flex items-center gap-1 mb-2">
+                                                    <Clock className="w-4 h-4" /> Registro de Tempo
+                                                </label>
+                                                <div className="flex gap-2">
                                                     <button
-                                                        onClick={() => deleteAttachment(idx)}
-                                                        className="absolute top-1 right-1 bg-red-600 text-white p-1 rounded-full"
+                                                        onClick={() => handleTimeLog('START')}
+                                                        disabled={isTimerRunning || isReadOnly}
+                                                        className={`flex-1 py-2 rounded text-sm font-bold transition-colors ${isTimerRunning || isReadOnly ? 'bg-slate-300 text-slate-500 cursor-not-allowed' : 'bg-green-600 text-white hover:bg-green-700'}`}
                                                     >
-                                                        <Trash2 className="w-4 h-4" />
+                                                        Check-in
                                                     </button>
+                                                    <button
+                                                        onClick={() => handleTimeLog('STOP')}
+                                                        disabled={!isTimerRunning || isReadOnly}
+                                                        className={`flex-1 py-2 rounded text-sm font-bold transition-colors ${!isTimerRunning || isReadOnly ? 'bg-slate-300 text-slate-500 cursor-not-allowed' : 'bg-red-600 text-white hover:bg-red-700'}`}
+                                                    >
+                                                        Parar
+                                                    </button>
+                                                </div>
+                                                {isTimerRunning && (
+                                                    <div className="mt-2 text-xs text-green-600 font-bold flex items-center gap-1 animate-pulse">
+                                                        <div className="w-2 h-2 rounded-full bg-green-600"></div>
+                                                        Em andamento
+                                                    </div>
                                                 )}
                                             </div>
-                                        ))
-                                    )}
-                                </div>
-                            </div>
-                        )}
+                                        </div>
 
-                        {activeTab === 'parts' && !isTechnician && (
-                            <div className="space-y-6">
-                                {!isReadOnly && (
-                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                                        {/* Add Part Section */}
-                                        <div className="bg-slate-50 p-4 rounded-lg border border-slate-200">
-                                            <h4 className="font-bold text-slate-700 mb-3 flex items-center gap-2"><Package className="w-4 h-4" /> Adicionar Peças</h4>
-                                            <div className="space-y-3">
-                                                <div>
-                                                    <label className="text-xs font-medium text-slate-500 mb-1 block">Item Selecionado</label>
-                                                    <div className="flex gap-2">
-                                                        <input
-                                                            readOnly
-                                                            className="w-full p-2 border rounded bg-slate-100 text-slate-700 text-sm font-medium"
-                                                            placeholder="Nenhum item selecionado..."
-                                                            value={partSearch}
-                                                        />
+                                        <div className="bg-white p-4 border rounded-lg">
+                                            <h3 className="font-bold mb-2">Descrição do Problema</h3>
+                                            <textarea
+                                                className="w-full p-2 border rounded bg-white text-slate-900 h-32 lg:h-24 text-base disabled:bg-slate-50"
+                                                value={selectedOrder.description}
+                                                onChange={(e) => saveOrderUpdate({ ...selectedOrder, description: e.target.value })}
+                                                disabled={isTechnician || isReadOnly}
+                                            />
+                                            {!isReadOnly && (
+                                                <button
+                                                    onClick={runAiDiagnosis}
+                                                    disabled={isAnalyzing}
+                                                    className="mt-4 lg:mt-2 w-full lg:w-auto px-4 py-2 border border-purple-200 bg-purple-50 rounded text-sm text-purple-600 font-bold flex justify-center lg:justify-start items-center gap-2 hover:bg-purple-100"
+                                                >
+                                                    <BrainCircuit className="w-4 h-4" /> {isAnalyzing ? 'Analisando...' : 'Gerar Diagnóstico IA'}
+                                                </button>
+                                            )}
+                                            {aiAnalysis && (
+                                                <div className="mt-4 p-4 bg-purple-50 rounded border border-purple-100 text-sm" dangerouslySetInnerHTML={{ __html: aiAnalysis }} />
+                                            )}
+                                        </div>
+                                    </div>
+                                )}
+
+                                {activeTab === 'checklist' && (
+                                    <div>
+                                        {!isReadOnly && (
+                                            <div className="flex flex-col lg:flex-row gap-2 mb-4">
+                                                <button onClick={() => loadChecklistTemplate('REVISAO_100')} className="px-3 py-2 lg:py-1 bg-slate-100 hover:bg-slate-200 rounded text-sm border">Carregar Revisão 100h</button>
+                                                <button onClick={() => loadChecklistTemplate('ENTREGA_TECNICA')} className="px-3 py-2 lg:py-1 bg-slate-100 hover:bg-slate-200 rounded text-sm border">Carregar Entrega Técnica</button>
+                                            </div>
+                                        )}
+                                        <div className="space-y-2">
+                                            {!selectedOrder.checklist || selectedOrder.checklist.length === 0 ? (
+                                                <p className="text-slate-400 italic">Nenhum checklist ativo.</p>
+                                            ) : selectedOrder.checklist.map(item => (
+                                                <div
+                                                    key={item.id}
+                                                    className={`flex items-center gap-3 p-3 border rounded ${isReadOnly ? 'opacity-80' : 'hover:bg-slate-50 cursor-pointer'}`}
+                                                    onClick={() => toggleChecklistItem(item.id)}
+                                                >
+                                                    <div className={`w-6 h-6 lg:w-5 lg:h-5 flex-shrink-0 rounded border flex items-center justify-center ${item.checked ? 'bg-green-500 border-green-600 text-white' : 'bg-white border-slate-300'}`}>
+                                                        {item.checked && <CheckCircle className="w-4 h-4 lg:w-3 lg:h-3" />}
+                                                    </div>
+                                                    <span className={item.checked ? 'text-slate-500 line-through' : 'text-slate-800'}>{item.label}</span>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    </div>
+                                )}
+
+                                {activeTab === 'report' && (
+                                    <div className="space-y-6">
+                                        <div className="bg-amber-50 p-4 rounded border border-amber-100">
+                                            <div className="flex items-center gap-2 mb-2 text-amber-800 font-bold">
+                                                <AlertTriangle className="w-5 h-5" /> Estado da Embarcação
+                                            </div>
+                                            <textarea
+                                                className="w-full p-2 border rounded bg-white text-slate-900 h-24 text-sm disabled:bg-slate-50"
+                                                placeholder="Ex: Casco com riscos na proa, estofamento rasgado, porão sujo..."
+                                                value={selectedOrder.boatStatus || ''}
+                                                onChange={e => saveOrderUpdate({ ...selectedOrder, boatStatus: e.target.value })}
+                                                disabled={isReadOnly}
+                                            />
+                                        </div>
+
+                                        <div className="bg-slate-50 p-4 rounded border border-slate-200">
+                                            <div className="flex items-center gap-2 mb-2 text-slate-800 font-bold">
+                                                <AlertOctagon className="w-5 h-5" /> Estado dos Motores
+                                            </div>
+                                            <textarea
+                                                className="w-full p-2 border rounded bg-white text-slate-900 h-24 text-sm disabled:bg-slate-50"
+                                                placeholder="Ex: Vazamento de óleo na rabeta, oxidação nos terminais..."
+                                                value={selectedOrder.engineStatus || ''}
+                                                onChange={e => saveOrderUpdate({ ...selectedOrder, engineStatus: e.target.value })}
+                                                disabled={isReadOnly}
+                                            />
+                                        </div>
+
+                                        <div className="bg-blue-50 p-4 rounded border border-blue-100">
+                                            <div className="flex items-center gap-2 mb-2 text-blue-800 font-bold">
+                                                <FileText className="w-5 h-5" /> Observações do Serviço
+                                            </div>
+                                            <textarea
+                                                className="w-full p-2 border rounded bg-white text-slate-900 h-32 text-sm disabled:bg-slate-50"
+                                                placeholder="Descreva o que foi realizado, dificuldades encontradas..."
+                                                value={selectedOrder.technicianNotes || ''}
+                                                onChange={e => saveOrderUpdate({ ...selectedOrder, technicianNotes: e.target.value })}
+                                                disabled={isReadOnly}
+                                            />
+                                        </div>
+                                    </div>
+                                )}
+
+                                {activeTab === 'media' && (
+                                    <div>
+                                        {!isReadOnly && (
+                                            <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-6">
+                                                {[
+                                                    { type: 'HOUR_METER', label: 'Horímetro', color: 'bg-blue-100 text-blue-700' },
+                                                    { type: 'SERIAL_NUMBER', label: 'Nº Série', color: 'bg-slate-100 text-slate-700' },
+                                                    { type: 'PART_REPLACED', label: 'Peça Trocada', color: 'bg-red-100 text-red-700' },
+                                                    { type: 'SERVICE', label: 'Serviço', color: 'bg-green-100 text-green-700' },
+                                                ].map((btn) => (
+                                                    <button
+                                                        key={btn.type}
+                                                        onClick={() => triggerFileUpload(btn.type as AttachmentType)}
+                                                        className={`p-3 rounded-lg flex flex-col items-center justify-center gap-2 border hover:brightness-95 transition-all ${btn.color}`}
+                                                    >
+                                                        <Camera className="w-6 h-6" />
+                                                        <span className="text-[10px] lg:text-xs font-bold uppercase text-center">{btn.label}</span>
+                                                    </button>
+                                                ))}
+                                            </div>
+                                        )}
+
+                                        <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+                                            {!selectedOrder.attachments || selectedOrder.attachments.length === 0 ? (
+                                                <p className="col-span-full text-slate-400 italic text-center py-8 bg-slate-50 border rounded-lg border-dashed">
+                                                    Nenhuma foto anexada.
+                                                </p>
+                                            ) : (
+                                                selectedOrder.attachments.map((att, idx) => (
+                                                    <div key={idx} className="relative group rounded-lg overflow-hidden border border-slate-200">
+                                                        <img src={att.url} alt={att.description} className="w-full h-32 object-cover" />
+                                                        <div className="absolute bottom-0 left-0 right-0 bg-black/60 text-white p-2 text-xs">
+                                                            <span className="font-bold block">{att.type}</span>
+                                                        </div>
+                                                        {!isReadOnly && (
+                                                            <button
+                                                                onClick={() => deleteAttachment(idx)}
+                                                                className="absolute top-1 right-1 bg-red-600 text-white p-1 rounded-full"
+                                                            >
+                                                                <Trash2 className="w-4 h-4" />
+                                                            </button>
+                                                        )}
+                                                    </div>
+                                                ))
+                                            )}
+                                        </div>
+                                    </div>
+                                )}
+
+                                {activeTab === 'parts' && !isTechnician && (
+                                    <div className="space-y-6">
+                                        {!isReadOnly && (
+                                            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                                {/* Add Part Section */}
+                                                <div className="bg-slate-50 p-4 rounded-lg border border-slate-200">
+                                                    <h4 className="font-bold text-slate-700 mb-3 flex items-center gap-2"><Package className="w-4 h-4" /> Adicionar Peças</h4>
+                                                    <div className="space-y-3">
+                                                        <div>
+                                                            <label className="text-xs font-medium text-slate-500 mb-1 block">Item Selecionado</label>
+                                                            <div className="flex gap-2">
+                                                                <input
+                                                                    readOnly
+                                                                    className="w-full p-2 border rounded bg-slate-100 text-slate-700 text-sm font-medium"
+                                                                    placeholder="Nenhum item selecionado..."
+                                                                    value={partSearch}
+                                                                />
+                                                                <button
+                                                                    onClick={() => setIsItemSearchOpen(true)}
+                                                                    className="bg-slate-800 text-white px-3 py-2 rounded hover:bg-slate-700 flex items-center gap-2"
+                                                                >
+                                                                    <Search className="w-4 h-4" />
+                                                                </button>
+                                                            </div>
+                                                        </div>
+
+                                                        <div className="flex gap-2">
+                                                            <div className="w-20">
+                                                                <label className="text-xs font-medium text-slate-500 mb-1 block">Qtd</label>
+                                                                <input
+                                                                    type="number"
+                                                                    className="w-full p-2 border rounded bg-white text-slate-900 text-sm"
+                                                                    value={partQty}
+                                                                    onChange={e => setPartQty(Number(e.target.value))}
+                                                                />
+                                                            </div>
+                                                            <div className="flex-1">
+                                                                <label className="text-xs font-medium text-slate-500 mb-1 block">Preço Unit. (R$)</label>
+                                                                <input
+                                                                    type="number"
+                                                                    step="0.01"
+                                                                    className="w-full p-2 border rounded bg-white text-slate-900 text-sm"
+                                                                    value={partPrice}
+                                                                    onChange={e => setPartPrice(Number(e.target.value))}
+                                                                />
+                                                            </div>
+                                                        </div>
                                                         <button
-                                                            onClick={() => setIsItemSearchOpen(true)}
-                                                            className="bg-slate-800 text-white px-3 py-2 rounded hover:bg-slate-700 flex items-center gap-2"
+                                                            onClick={handleAddPart}
+                                                            disabled={!selectedPartId}
+                                                            className="w-full bg-cyan-600 text-white p-2 rounded hover:bg-cyan-700 disabled:opacity-50 text-sm font-bold"
                                                         >
-                                                            <Search className="w-4 h-4" />
+                                                            Adicionar Peça à OS
                                                         </button>
                                                     </div>
                                                 </div>
 
-                                                <div className="flex gap-2">
-                                                    <div className="w-20">
-                                                        <label className="text-xs font-medium text-slate-500 mb-1 block">Qtd</label>
-                                                        <input
-                                                            type="number"
-                                                            className="w-full p-2 border rounded bg-white text-slate-900 text-sm"
-                                                            value={partQty}
-                                                            onChange={e => setPartQty(Number(e.target.value))}
-                                                        />
+                                                {/* Add Service Section */}
+                                                <div className="bg-slate-50 p-4 rounded-lg border border-slate-200">
+                                                    <h4 className="font-bold text-slate-700 mb-3 flex items-center gap-2"><Wrench className="w-4 h-4" /> Adicionar Serviço</h4>
+                                                    <div className="space-y-3">
+                                                        <div>
+                                                            <label className="text-xs font-medium text-slate-500 mb-1 block">Selecione o Serviço do Catálogo</label>
+                                                            <select
+                                                                className="w-full p-2 border rounded bg-white text-slate-900 text-sm"
+                                                                value={selectedServiceId}
+                                                                onChange={handleServiceSelect}
+                                                            >
+                                                                <option value="">-- Selecione o Tipo de Serviço --</option>
+                                                                {servicesCatalog.map(s => (
+                                                                    <option key={s.id} value={s.id}>[{s.category}] {s.name}</option>
+                                                                ))}
+                                                            </select>
+                                                        </div>
+
+                                                        <div>
+                                                            <label className="text-xs font-medium text-slate-500 mb-1 block">Valor do Serviço (R$)</label>
+                                                            <input
+                                                                type="number"
+                                                                step="0.01"
+                                                                className="w-full p-2 border rounded bg-white text-slate-900 text-sm"
+                                                                value={servicePrice}
+                                                                onChange={e => setServicePrice(Number(e.target.value))}
+                                                            />
+                                                        </div>
+
+                                                        <button
+                                                            onClick={handleAddService}
+                                                            disabled={!selectedServiceId}
+                                                            className="w-full bg-blue-600 text-white p-2 rounded hover:bg-blue-700 disabled:opacity-50 text-sm font-bold mt-auto"
+                                                        >
+                                                            Adicionar Mão de Obra
+                                                        </button>
                                                     </div>
-                                                    <div className="flex-1">
-                                                        <label className="text-xs font-medium text-slate-500 mb-1 block">Preço Unit. (R$)</label>
-                                                        <input
-                                                            type="number"
-                                                            step="0.01"
-                                                            className="w-full p-2 border rounded bg-white text-slate-900 text-sm"
-                                                            value={partPrice}
-                                                            onChange={e => setPartPrice(Number(e.target.value))}
-                                                        />
-                                                    </div>
                                                 </div>
-                                                <button
-                                                    onClick={handleAddPart}
-                                                    disabled={!selectedPartId}
-                                                    className="w-full bg-cyan-600 text-white p-2 rounded hover:bg-cyan-700 disabled:opacity-50 text-sm font-bold"
-                                                >
-                                                    Adicionar Peça à OS
-                                                </button>
                                             </div>
-                                        </div>
+                                        )}
 
-                                        {/* Add Service Section */}
-                                        <div className="bg-slate-50 p-4 rounded-lg border border-slate-200">
-                                            <h4 className="font-bold text-slate-700 mb-3 flex items-center gap-2"><Wrench className="w-4 h-4" /> Adicionar Serviço</h4>
-                                            <div className="space-y-3">
-                                                <div>
-                                                    <label className="text-xs font-medium text-slate-500 mb-1 block">Selecione o Serviço do Catálogo</label>
-                                                    <select
-                                                        className="w-full p-2 border rounded bg-white text-slate-900 text-sm"
-                                                        value={selectedServiceId}
-                                                        onChange={handleServiceSelect}
-                                                    >
-                                                        <option value="">-- Selecione o Tipo de Serviço --</option>
-                                                        {servicesCatalog.map(s => (
-                                                            <option key={s.id} value={s.id}>[{s.category}] {s.name}</option>
-                                                        ))}
-                                                    </select>
-                                                </div>
-
-                                                <div>
-                                                    <label className="text-xs font-medium text-slate-500 mb-1 block">Valor do Serviço (R$)</label>
-                                                    <input
-                                                        type="number"
-                                                        step="0.01"
-                                                        className="w-full p-2 border rounded bg-white text-slate-900 text-sm"
-                                                        value={servicePrice}
-                                                        onChange={e => setServicePrice(Number(e.target.value))}
-                                                    />
-                                                </div>
-
-                                                <button
-                                                    onClick={handleAddService}
-                                                    disabled={!selectedServiceId}
-                                                    className="w-full bg-blue-600 text-white p-2 rounded hover:bg-blue-700 disabled:opacity-50 text-sm font-bold mt-auto"
-                                                >
-                                                    Adicionar Mão de Obra
-                                                </button>
-                                            </div>
+                                        <div className="overflow-x-auto border rounded-lg">
+                                            <table className="w-full text-sm text-left">
+                                                <thead className="bg-slate-50 text-slate-500 font-semibold">
+                                                    <tr><th className="p-3">Item / Descrição</th><th className="p-3 text-right">Qtd</th><th className="p-3 text-right">Unitário</th><th className="p-3 text-right">Total</th><th className="p-3"></th></tr>
+                                                </thead>
+                                                <tbody>
+                                                    {selectedOrder.items.length === 0 && (
+                                                        <tr><td colSpan={5} className="p-6 text-center text-slate-400 italic">Nenhum item adicionado à ordem.</td></tr>
+                                                    )}
+                                                    {selectedOrder.items.map(item => (
+                                                        <tr key={item.id} className="border-b last:border-0 hover:bg-slate-50">
+                                                            <td className="p-3">
+                                                                <div className="flex items-center gap-2">
+                                                                    {item.type === 'PART' ? <Package className="w-4 h-4 text-cyan-600" /> : <Wrench className="w-4 h-4 text-blue-600" />}
+                                                                    {item.description}
+                                                                </div>
+                                                            </td>
+                                                            <td className="p-3 text-right">{item.quantity}</td>
+                                                            <td className="p-3 text-right text-slate-500">R$ {item.unitPrice.toFixed(2)}</td>
+                                                            <td className="p-3 text-right font-bold text-slate-800">R$ {item.total.toFixed(2)}</td>
+                                                            <td className="p-3 text-right">
+                                                                {!isReadOnly && (
+                                                                    <button onClick={() => removeItemFromOrder(item.id)} className="text-red-400 hover:text-red-600">
+                                                                        <Trash2 className="w-4 h-4" />
+                                                                    </button>
+                                                                )}
+                                                            </td>
+                                                        </tr>
+                                                    ))}
+                                                </tbody>
+                                                <tfoot className="bg-slate-100 font-bold text-slate-800">
+                                                    <tr>
+                                                        <td colSpan={3} className="p-3 text-right">TOTAL GERAL:</td>
+                                                        <td className="p-3 text-right text-lg">R$ {selectedOrder.totalValue.toFixed(2)}</td>
+                                                        <td></td>
+                                                    </tr>
+                                                </tfoot>
+                                            </table>
                                         </div>
                                     </div>
                                 )}
 
-                                <div className="overflow-x-auto border rounded-lg">
-                                    <table className="w-full text-sm text-left">
-                                        <thead className="bg-slate-50 text-slate-500 font-semibold">
-                                            <tr><th className="p-3">Item / Descrição</th><th className="p-3 text-right">Qtd</th><th className="p-3 text-right">Unitário</th><th className="p-3 text-right">Total</th><th className="p-3"></th></tr>
-                                        </thead>
-                                        <tbody>
-                                            {selectedOrder.items.length === 0 && (
-                                                <tr><td colSpan={5} className="p-6 text-center text-slate-400 italic">Nenhum item adicionado à ordem.</td></tr>
-                                            )}
-                                            {selectedOrder.items.map(item => (
-                                                <tr key={item.id} className="border-b last:border-0 hover:bg-slate-50">
-                                                    <td className="p-3">
-                                                        <div className="flex items-center gap-2">
-                                                            {item.type === 'PART' ? <Package className="w-4 h-4 text-cyan-600" /> : <Wrench className="w-4 h-4 text-blue-600" />}
-                                                            {item.description}
+                                {activeTab === 'profit' && role === UserRole.ADMIN && (
+                                    <div className="space-y-6">
+                                        <h3 className="text-lg font-bold text-slate-800 mb-4">Análise de Lucratividade</h3>
+                                        {(() => {
+                                            const { totalRevenue, totalPartCost, estimatedLaborCost, profit, margin } = calculateProfit(selectedOrder);
+                                            return (
+                                                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                                                    <div className="bg-white p-6 rounded-xl border border-slate-200 shadow-sm">
+                                                        <p className="text-sm text-slate-500 uppercase font-bold mb-2">Receita Total</p>
+                                                        <p className="text-3xl font-bold text-slate-800">R$ {totalRevenue.toFixed(2)}</p>
+                                                    </div>
+                                                    <div className="bg-white p-6 rounded-xl border border-slate-200 shadow-sm">
+                                                        <p className="text-sm text-slate-500 uppercase font-bold mb-2">Custos Totais (Estimados)</p>
+                                                        <p className="text-3xl font-bold text-red-600">R$ {(totalPartCost + estimatedLaborCost).toFixed(2)}</p>
+                                                        <div className="text-xs text-slate-400 mt-2">
+                                                            <p>Peças: R$ {totalPartCost.toFixed(2)}</p>
+                                                            <p>Mão de Obra (30%): R$ {estimatedLaborCost.toFixed(2)}</p>
                                                         </div>
-                                                    </td>
-                                                    <td className="p-3 text-right">{item.quantity}</td>
-                                                    <td className="p-3 text-right text-slate-500">R$ {item.unitPrice.toFixed(2)}</td>
-                                                    <td className="p-3 text-right font-bold text-slate-800">R$ {item.total.toFixed(2)}</td>
-                                                    <td className="p-3 text-right">
-                                                        {!isReadOnly && (
-                                                            <button onClick={() => removeItemFromOrder(item.id)} className="text-red-400 hover:text-red-600">
-                                                                <Trash2 className="w-4 h-4" />
-                                                            </button>
-                                                        )}
-                                                    </td>
-                                                </tr>
-                                            ))}
-                                        </tbody>
-                                        <tfoot className="bg-slate-100 font-bold text-slate-800">
-                                            <tr>
-                                                <td colSpan={3} className="p-3 text-right">TOTAL GERAL:</td>
-                                                <td className="p-3 text-right text-lg">R$ {selectedOrder.totalValue.toFixed(2)}</td>
-                                                <td></td>
-                                            </tr>
-                                        </tfoot>
-                                    </table>
-                                </div>
-                            </div>
-                        )}
-
-                        {activeTab === 'profit' && role === UserRole.ADMIN && (
-                            <div className="space-y-6">
-                                <h3 className="text-lg font-bold text-slate-800 mb-4">Análise de Lucratividade</h3>
-                                {(() => {
-                                    const { totalRevenue, totalPartCost, estimatedLaborCost, profit, margin } = calculateProfit(selectedOrder);
-                                    return (
-                                        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                                            <div className="bg-white p-6 rounded-xl border border-slate-200 shadow-sm">
-                                                <p className="text-sm text-slate-500 uppercase font-bold mb-2">Receita Total</p>
-                                                <p className="text-3xl font-bold text-slate-800">R$ {totalRevenue.toFixed(2)}</p>
-                                            </div>
-                                            <div className="bg-white p-6 rounded-xl border border-slate-200 shadow-sm">
-                                                <p className="text-sm text-slate-500 uppercase font-bold mb-2">Custos Totais (Estimados)</p>
-                                                <p className="text-3xl font-bold text-red-600">R$ {(totalPartCost + estimatedLaborCost).toFixed(2)}</p>
-                                                <div className="text-xs text-slate-400 mt-2">
-                                                    <p>Peças: R$ {totalPartCost.toFixed(2)}</p>
-                                                    <p>Mão de Obra (30%): R$ {estimatedLaborCost.toFixed(2)}</p>
+                                                    </div>
+                                                    <div className={`p-6 rounded-xl border shadow-sm ${profit > 0 ? 'bg-emerald-50 border-emerald-200' : 'bg-red-50 border-red-200'}`}>
+                                                        <p className="text-sm uppercase font-bold mb-2 text-slate-600">Margem de Lucro</p>
+                                                        <p className={`text-3xl font-bold ${profit > 0 ? 'text-emerald-700' : 'text-red-700'}`}>
+                                                            R$ {profit.toFixed(2)}
+                                                        </p>
+                                                        <p className="text-sm font-semibold mt-1">{margin.toFixed(1)}%</p>
+                                                    </div>
                                                 </div>
-                                            </div>
-                                            <div className={`p-6 rounded-xl border shadow-sm ${profit > 0 ? 'bg-emerald-50 border-emerald-200' : 'bg-red-50 border-red-200'}`}>
-                                                <p className="text-sm uppercase font-bold mb-2 text-slate-600">Margem de Lucro</p>
-                                                <p className={`text-3xl font-bold ${profit > 0 ? 'text-emerald-700' : 'text-red-700'}`}>
-                                                    R$ {profit.toFixed(2)}
-                                                </p>
-                                                <p className="text-sm font-semibold mt-1">{margin.toFixed(1)}%</p>
-                                            </div>
-                                        </div>
-                                    );
-                                })()}
-                                <p className="text-xs text-slate-400 bg-slate-50 p-3 rounded">
-                                    Nota: O custo da Mão de Obra é estimado em 30% do valor cobrado para cobrir comissão e impostos.
-                                </p>
+                                            );
+                                        })()}
+                                        <p className="text-xs text-slate-400 bg-slate-50 p-3 rounded">
+                                            Nota: O custo da Mão de Obra é estimado em 30% do valor cobrado para cobrir comissão e impostos.
+                                        </p>
+                                    </div>
+                                )}
                             </div>
-                        )}
-                    </div>
-                </>
-            )}
+                        </>
+                    )}
+                </div>
             </div>
-        </div>
-      
-      { isCreating && <CreateOrderModal /> }
-    { isItemSearchOpen && <ItemSearchModal /> }
-    </div >
-  );
+
+            {isCreating && <CreateOrderModal />}
+            {isItemSearchOpen && <ItemSearchModal />}
+        </div >
+    );
 };
