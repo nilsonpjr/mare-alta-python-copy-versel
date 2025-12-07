@@ -20,6 +20,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ currentView, setView, currentU
       { id: 'dashboard', label: 'Visão Geral', icon: LayoutDashboard },
       { id: 'schedule', label: 'Agenda', icon: Calendar },
       { id: 'orders', label: 'Ordens de Serviço', icon: Wrench },
+      { id: 'maintenance-budget', label: 'Orçador de Revisão', icon: ClipboardList },
       { id: 'crm', label: 'CRM & Fidelização', icon: UserCheck },
       { id: 'sep1', type: 'separator', label: 'Gestão' },
       { id: 'clients', label: 'Clientes', icon: Users },
@@ -45,7 +46,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ currentView, setView, currentU
   }
 
   const getRoleBadge = () => {
-    switch(role) {
+    switch (role) {
       case UserRole.ADMIN: return { bg: 'bg-red-500', label: 'Admin' };
       case UserRole.TECHNICIAN: return { bg: 'bg-emerald-500', label: 'Técnico' };
       default: return { bg: 'bg-blue-500', label: 'Cliente' };
@@ -63,13 +64,13 @@ export const Sidebar: React.FC<SidebarProps> = ({ currentView, setView, currentU
       `}>
         <div className="p-6 flex justify-between items-center">
           <div className="flex items-center gap-3 text-white">
-              <div className="w-10 h-10 bg-gradient-to-br from-cyan-500 to-blue-600 rounded-lg flex items-center justify-center shadow-lg shadow-cyan-900/50">
-                  <Anchor className="w-6 h-6 text-white" />
-              </div>
-              <div>
-                  <h1 className="font-bold text-lg tracking-wide">MARE ALTA</h1>
-                  <p className="text-[10px] text-cyan-400 font-medium tracking-wider uppercase">Manager System</p>
-              </div>
+            <div className="w-10 h-10 bg-gradient-to-br from-cyan-500 to-blue-600 rounded-lg flex items-center justify-center shadow-lg shadow-cyan-900/50">
+              <Anchor className="w-6 h-6 text-white" />
+            </div>
+            <div>
+              <h1 className="font-bold text-lg tracking-wide">MARE ALTA</h1>
+              <p className="text-[10px] text-cyan-400 font-medium tracking-wider uppercase">Manager System</p>
+            </div>
           </div>
           <button onClick={onClose} className="md:hidden text-slate-400 hover:text-white">
             <X className="w-6 h-6" />
@@ -79,11 +80,11 @@ export const Sidebar: React.FC<SidebarProps> = ({ currentView, setView, currentU
         <nav className="flex-1 overflow-y-auto px-3 pb-4 space-y-1 scrollbar-thin scrollbar-thumb-slate-700">
           {menuItems.map((item, idx) => {
             if (item.type === 'separator') {
-                return (
-                    <div key={`sep-${idx}`} className="pt-4 pb-2 px-3">
-                        <p className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">{item.label}</p>
-                    </div>
-                );
+              return (
+                <div key={`sep-${idx}`} className="pt-4 pb-2 px-3">
+                  <p className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">{item.label}</p>
+                </div>
+              );
             }
 
             const Icon = item.icon;
@@ -92,15 +93,14 @@ export const Sidebar: React.FC<SidebarProps> = ({ currentView, setView, currentU
               <button
                 key={item.id}
                 onClick={() => setView(item.id)}
-                className={`w-full flex items-center justify-between px-3 py-2.5 rounded-lg transition-all duration-200 group ${
-                  isActive 
-                    ? 'bg-gradient-to-r from-cyan-600 to-blue-600 text-white shadow-md shadow-cyan-900/20' 
+                className={`w-full flex items-center justify-between px-3 py-2.5 rounded-lg transition-all duration-200 group ${isActive
+                    ? 'bg-gradient-to-r from-cyan-600 to-blue-600 text-white shadow-md shadow-cyan-900/20'
                     : 'hover:bg-slate-800 hover:text-white'
-                }`}
+                  }`}
               >
                 <div className="flex items-center">
-                    <Icon className={`w-5 h-5 mr-3 transition-colors ${isActive ? 'text-white' : 'text-slate-400 group-hover:text-cyan-400'}`} />
-                    <span className="font-medium text-sm">{item.label}</span>
+                  <Icon className={`w-5 h-5 mr-3 transition-colors ${isActive ? 'text-white' : 'text-slate-400 group-hover:text-cyan-400'}`} />
+                  <span className="font-medium text-sm">{item.label}</span>
                 </div>
                 {isActive && <ChevronRight className="w-3 h-3 text-cyan-200" />}
               </button>
@@ -116,12 +116,12 @@ export const Sidebar: React.FC<SidebarProps> = ({ currentView, setView, currentU
             <div className="overflow-hidden flex-1">
               <p className="text-sm font-bold text-white truncate">{currentUser.name.split(' ')[0]}</p>
               <p className="text-[10px] text-slate-400 truncate flex items-center gap-1">
-                  <span className={`w-1.5 h-1.5 rounded-full ${badge.bg}`}></span>
-                  {badge.label}
+                <span className={`w-1.5 h-1.5 rounded-full ${badge.bg}`}></span>
+                {badge.label}
               </p>
             </div>
           </div>
-          <button 
+          <button
             onClick={onLogout}
             className="w-full flex items-center justify-center px-4 py-2 text-xs font-bold text-slate-300 hover:text-white bg-slate-800 hover:bg-red-900/30 hover:border-red-900/50 border border-transparent rounded transition-all"
           >

@@ -13,6 +13,7 @@ import { SettingsView } from './components/SettingsView';
 import { CRMView } from './components/CRMView';
 import { LoginView } from './components/LoginView';
 import { UsersView } from './components/UsersView';
+import { MaintenanceBudgetView } from './components/MaintenanceBudgetView';
 import { UserRole, User } from './types';
 import { Menu, Anchor } from 'lucide-react';
 
@@ -22,19 +23,19 @@ function App() {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
   const handleLogin = (user: User) => {
-      setCurrentUser(user);
-      if (user.role === UserRole.TECHNICIAN) {
-          setCurrentView('tech-orders');
-      } else if (user.role === UserRole.CLIENT) {
-          setCurrentView('client-portal');
-      } else {
-          setCurrentView('dashboard');
-      }
+    setCurrentUser(user);
+    if (user.role === UserRole.TECHNICIAN) {
+      setCurrentView('tech-orders');
+    } else if (user.role === UserRole.CLIENT) {
+      setCurrentView('client-portal');
+    } else {
+      setCurrentView('dashboard');
+    }
   };
 
   const handleLogout = () => {
-      setCurrentUser(null);
-      setCurrentView('dashboard');
+    setCurrentUser(null);
+    setCurrentView('dashboard');
   };
 
   const handleSetView = (view: string) => {
@@ -62,21 +63,23 @@ function App() {
         return <InventoryView />;
       case 'crm':
         return <CRMView />;
+      case 'maintenance-budget':
+        return <MaintenanceBudgetView />;
       case 'fleet':
         return <FleetView />;
       case 'users':
         return <UsersView />;
-        
+
       // Technician Views
       case 'tech-orders':
         return <OrdersView role={UserRole.TECHNICIAN} />;
-        
+
       // Client Views
       case 'client-portal':
         return <OrdersView role={UserRole.CLIENT} />;
       case 'client-fleet':
         return <FleetView />;
-        
+
       case 'finance':
         return <FinanceView />;
       case 'settings':
@@ -87,36 +90,36 @@ function App() {
   };
 
   if (!currentUser) {
-      return <LoginView onLogin={handleLogin} />;
+    return <LoginView onLogin={handleLogin} />;
   }
 
   return (
     <div className="flex bg-slate-50 min-h-screen font-sans">
       {/* Mobile Header */}
       <div className="md:hidden fixed top-0 left-0 right-0 h-16 bg-slate-900 z-40 flex items-center px-4 justify-between shadow-md">
-         <div className="flex items-center gap-3 text-white">
-             <div className="w-8 h-8 bg-gradient-to-br from-cyan-500 to-blue-600 rounded-lg flex items-center justify-center">
-                 <Anchor className="w-5 h-5 text-white" />
-             </div>
-             <span className="font-bold tracking-wide">MARE ALTA</span>
-         </div>
-         <button onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)} className="text-white p-2">
-             <Menu className="w-6 h-6" />
-         </button>
+        <div className="flex items-center gap-3 text-white">
+          <div className="w-8 h-8 bg-gradient-to-br from-cyan-500 to-blue-600 rounded-lg flex items-center justify-center">
+            <Anchor className="w-5 h-5 text-white" />
+          </div>
+          <span className="font-bold tracking-wide">MARE ALTA</span>
+        </div>
+        <button onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)} className="text-white p-2">
+          <Menu className="w-6 h-6" />
+        </button>
       </div>
 
-      <Sidebar 
-        currentView={currentView} 
-        setView={handleSetView} 
+      <Sidebar
+        currentView={currentView}
+        setView={handleSetView}
         currentUser={currentUser}
         onLogout={handleLogout}
         isOpen={isMobileMenuOpen}
         onClose={() => setIsMobileMenuOpen(false)}
       />
-      
+
       {/* Overlay for mobile menu */}
       {isMobileMenuOpen && (
-        <div 
+        <div
           className="fixed inset-0 bg-black/50 z-40 md:hidden"
           onClick={() => setIsMobileMenuOpen(false)}
         />
