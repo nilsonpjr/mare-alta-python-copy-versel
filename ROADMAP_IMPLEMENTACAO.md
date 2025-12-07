@@ -6,13 +6,14 @@ Este documento serve como nosso **"Mapa de Controle"** para garantir que o Plano
 
 ---
 
-## 🏁 Fase 1: O "Diferencial Vendedor" (Foco Atual)
+## 🏁 Fase 1: O "Diferencial Vendedor" ✅ COMPLETA
 *Objetivo: Ter uma ferramenta que encante oficinas e mecânicos imediatamente.*
 
 - [x] **Estrutura de Dados dos Kits de Revisão** (Criado em `frontend/types/maintenance.ts` e `data/maintenance_kits.ts`)
-- [ ] **Tela de Orçador Rápido (UI):** Criar a interface onde o mecânico seleciona "Mercury Verado 300 - 100h" e o orçamento sai pronto.
-- [ ] **PDF de Orçamento:** Gerar um PDF profissional com logo da oficina para enviar ao cliente.
-- [ ] **Integração com Estoque:** Ao aprovar o orçamento, baixar as peças do estoque automaticamente.
+- [x] **Tela de Orçador Rápido (UI):** Criar a interface onde o mecânico seleciona "Mercury Verado 300 - 100h" e o orçamento sai pronto.
+- [x] **Gerador de Pré-Ordem:** Botão que cria automaticamente a OS com os itens do kit.
+- [x] **PDF de Orçamento:** Gerar um PDF profissional com logo da oficina para enviar ao cliente.
+- [x] **Baixa de Estoque Real:** Conectar a criação da OS com a redução do `quantity` na tabela de peças (via `partId` matching).
 
 ## 🏗 Fase 2: Estrutura SaaS & Backend (Alicerce)
 *Objetivo: Preparar o sistema para ter múltiplos clientes (Multi-tenancy).*
@@ -37,5 +38,12 @@ Este documento serve como nosso **"Mapa de Controle"** para garantir que o Plano
 ---
 
 ## 📌 Status Atual
-**Módulo em Andamento:** Fase 1 -> Tela de Orçador Rápido.
-**Próxima Ação:** Criar o componente React `MaintenanceBudgetView.tsx`.
+**Módulo em Andamento:** ✅ Fase 1 Concluída! Iniciando Fase 2.
+**Próxima Ação:** Migrar backend para Python FastAPI (Multi-tenancy).
+
+---
+
+## 🎯 Como Usar Este Roadmap
+1. **Sempre marque [x] quando terminar uma tarefa.**
+2. **Nunca pule de fase sem completar a anterior.**
+3. **Atualize "Status Atual" após cada sessão de trabalho.**
