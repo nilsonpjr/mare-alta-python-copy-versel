@@ -220,6 +220,8 @@ export interface CompanyInfo {
   zip?: string;
   crt?: string;
   environment?: string;
+  mercuryUsername?: string;
+  mercuryPassword?: string;
 }
 
 export interface ServiceOrder {
