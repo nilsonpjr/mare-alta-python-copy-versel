@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Boat, Client, Engine, Marina, SystemConfig } from '../types';
 import { StorageService } from '../services/storage';
+import { ApiService } from '../services/api';
 import { Plus, Search, Anchor, Edit2, UserCircle, Save, Trash, MapPin, Settings } from 'lucide-react';
 
 export const BoatsView: React.FC = () => {
@@ -145,6 +146,46 @@ export const BoatsView: React.FC = () => {
     );
 
     if (!config) return <div>Carregando...</div>;
+
+    // Mercury Lookup State
+    const [loadingMercury, setLoadingMercury] = useState(false);
+
+    const lookupEngineInfo = async () => {
+        if (!tempEngine.serialNumber) {
+            alert("Digite o número de série do motor.");
+            return;
+        }
+        setLoadingMercury(true);
+        try {
+            // Force type to any to avoid TS errors if interface mismatch for now
+            const response: any = await ApiService.getMercuryWarranty(tempEngine.serialNumber);
+            if (response.status === 'success' && response.data) {
+                const data = response.data;
+
+                // Try parse year from sale date (dd/mm/yyyy)
+                let year = undefined;
+                if (data.dt_venda) {
+                    const parts = data.dt_venda.split('/');
+                    if (parts.length === 3) year = parseInt(parts[2]);
+                }
+
+                setTempEngine({
+                    ...tempEngine,
+                    model: data.modelo, // Auto-fill model
+                    year: year || tempEngine.year
+                });
+
+                setSelectedEngineBrand('Mercury'); // Auto-select Mercury if possible
+
+                alert(`Dados encontrados no Portal Mercury!\n\nModelo: ${data.modelo}\nCliente: ${data.nome_cli}\nGarantia: ${data.status_garantia} (Val: ${data.vld_garantia})`);
+            }
+        } catch (error) {
+            console.error("Erro busca mercury:", error);
+            alert("Motor não encontrado ou erro de conexão com Mercury.");
+        } finally {
+            setLoadingMercury(false);
+        }
+    };
 
     return (
         <div className="p-4 md:p-8">
@@ -367,13 +408,13 @@ export const BoatsView: React.FC = () => {
                                             <div>
                                                 <p className="font-bold text-slate-700 text-sm">{eng.model}</p>
                                                 <div className="flex items-center gap-2">
-                                                    <p className="font-mono text-xs text-slate-500">S/N: {eng.serialNumber} | {eng.hours} hrs</p>
+                                                    <p className="font-mono text-xs text-slate-500">{eng.year} • S/N: {eng.serialNumber} • {eng.hours} hrs</p>
                                                     <button
                                                         title="Verificar Garantia Mercury"
-                                                        onClick={() => window.open(`/api/mercury/warranty/${eng.serialNumber}`, '_blank')}
+                                                        onClick={() => window.open(`https://portal.mercurymarine.com.br/epdv/ewr010.asp?s_nr_serie=${eng.serialNumber}`, '_blank')}
                                                         className="text-[10px] bg-blue-50 text-blue-600 px-1.5 py-0.5 rounded border border-blue-100 hover:bg-blue-100 flex items-center gap-1"
                                                     >
-                                                        <Search className="w-3 h-3" /> Check
+                                                        <Search className="w-3 h-3" /> Portal
                                                     </button>
                                                 </div>
                                             </div>
@@ -420,13 +461,21 @@ export const BoatsView: React.FC = () => {
                                             onChange={e => setTempEngine({ ...tempEngine, model: e.target.value })}
                                         />
                                     </div>
-                                    <div>
+                                    <div className="flex gap-1">
                                         <input
                                             placeholder="Número de Série"
                                             className="w-full p-1.5 text-sm border rounded bg-white text-slate-900"
                                             value={tempEngine.serialNumber || ''}
                                             onChange={e => setTempEngine({ ...tempEngine, serialNumber: e.target.value })}
                                         />
+                                        <button
+                                            title="Buscar dados no Mercury"
+                                            onClick={lookupEngineInfo}
+                                            disabled={loadingMercury || !tempEngine.serialNumber}
+                                            className="bg-blue-600 text-white p-1.5 rounded hover:bg-blue-700 disabled:opacity-50"
+                                        >
+                                            {loadingMercury ? <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" /> : <Search className="w-4 h-4" />}
+                                        </button>
                                     </div>
                                     <div className="flex gap-1">
                                         <input
@@ -459,4 +508,3 @@ export const BoatsView: React.FC = () => {
             )}
         </div>
     );
-};
