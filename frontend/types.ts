@@ -281,6 +281,8 @@ export interface Invoice {
   date: string;
   items: InvoiceItem[];
   totalValue: number;
+  importedAt?: string;
+  xmlKey?: string;
 }
 
 export interface Transaction {
