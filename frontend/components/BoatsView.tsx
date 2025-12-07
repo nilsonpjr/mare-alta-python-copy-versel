@@ -508,3 +508,4 @@ export const BoatsView: React.FC = () => {
             )}
         </div>
     );
+};
