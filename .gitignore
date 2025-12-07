@@ -38,3 +38,16 @@ backend/mercury_deploy/.venv/
 *.db
 *.sqlite
 *.sqlite3
+
+# Archive and Cleanup
+_archive/
+__pycache__/
+node_modules/
+dist/
+build/
+*.log
+.DS_Store
+.env
+venv/
+.venv/
+*.db
