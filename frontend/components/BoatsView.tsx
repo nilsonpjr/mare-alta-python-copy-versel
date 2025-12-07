@@ -68,7 +68,7 @@ export const BoatsView: React.FC = () => {
             );
         } else {
             const newBoat: Boat = {
-                id: Date.now().toString(),
+                id: Date.now(),
                 name: editingBoat.name,
                 hullId: editingBoat.hullId,
                 model: editingBoat.model || `${selectedBrand} ${selectedModel}`,
@@ -102,7 +102,8 @@ export const BoatsView: React.FC = () => {
         if (!tempEngine.model || !tempEngine.serialNumber) return;
 
         const newEngine: Engine = {
-            id: Date.now().toString(),
+            id: Date.now(),
+            boatId: editingBoat.id || 0,
             model: tempEngine.model,
             serialNumber: tempEngine.serialNumber,
             hours: tempEngine.hours || 0,

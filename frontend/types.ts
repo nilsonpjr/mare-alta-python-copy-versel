@@ -168,7 +168,7 @@ export interface ServiceItem {
   unitCost: number;
   unitPrice: number;
   total: number;
-  orderId: number;
+  orderId: string;
 }
 
 export interface ServiceItemCreate {
@@ -183,7 +183,7 @@ export interface ServiceItemCreate {
 
 export interface OrderNote {
   id: number;
-  orderId: number;
+  orderId: string;
   text: string;
   userName?: string;
   createdAt: string;
@@ -223,7 +223,7 @@ export interface CompanyInfo {
 }
 
 export interface ServiceOrder {
-  id: number;
+  id: string;
   boatId: number;
   engineId?: number;
   description: string;
@@ -237,6 +237,12 @@ export interface ServiceOrder {
   notes: OrderNote[];
   scheduledAt?: string;
   estimatedDuration?: number;
+  checklist?: ChecklistItem[];
+  timeLogs?: { start: string; end?: string; }[];
+  boatStatus?: string;
+  engineStatus?: string;
+  technicianNotes?: string;
+  attachments?: { type: string; url: string; description: string; createdAt: string; }[];
 }
 
 export interface ServiceOrderCreate {
@@ -283,7 +289,7 @@ export interface Transaction {
   amount: number;
   date: string;
   status: string;
-  orderId?: number;
+  orderId?: string;
   documentNumber?: string;
 }
 
@@ -357,6 +363,20 @@ export interface FiscalDataPayload {
 }
 
 export interface SystemConfig {
-  boatManufacturers: { [key: string]: string[] };
   engineManufacturers: { [key: string]: string[] };
+}
+
+export interface ChecklistItem {
+  id: string;
+  label: string;
+  checked: boolean;
+}
+
+export type AttachmentType = 'HOUR_METER' | 'SERIAL_NUMBER' | 'PART_REPLACED' | 'SERVICE' | 'OTHER';
+
+export interface ServiceDefinition {
+  id: string;
+  name: string;
+  category: string;
+  defaultPrice: number;
 }
