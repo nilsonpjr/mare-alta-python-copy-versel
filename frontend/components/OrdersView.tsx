@@ -17,7 +17,8 @@ import {
     Clipboard,
     AlertTriangle,
     Camera,
-    Trash2
+    Trash2,
+    Pencil
 } from 'lucide-react';
 
 interface OrdersViewProps {
@@ -82,6 +83,11 @@ export const OrdersView: React.FC<OrdersViewProps> = ({ role }) => {
 
     const [selectedServiceId, setSelectedServiceId] = useState('');
     const [servicePrice, setServicePrice] = useState(0);
+
+    // Edit Item State
+    const [editingItemId, setEditingItemId] = useState<string | number | null>(null);
+    const [editQty, setEditQty] = useState(0);
+    const [editPrice, setEditPrice] = useState(0);
 
     useEffect(() => {
         refreshData();
@@ -404,7 +410,38 @@ export const OrdersView: React.FC<OrdersViewProps> = ({ role }) => {
         setServicePrice(0);
     };
 
-    const removeItemFromOrder = (itemId: string) => {
+    const handleEditItem = (item: ServiceItem) => {
+        if (isReadOnly) return;
+        setEditingItemId(item.id);
+        setEditQty(item.quantity);
+        setEditPrice(item.unitPrice);
+    };
+
+    const handleSaveItem = () => {
+        if (!selectedOrder || !editingItemId) return;
+
+        const updatedItems = selectedOrder.items.map(item => {
+            if (item.id === editingItemId) {
+                return {
+                    ...item,
+                    quantity: editQty,
+                    unitPrice: editPrice,
+                    total: editQty * editPrice
+                };
+            }
+            return item;
+        });
+
+        const newTotal = updatedItems.reduce((acc, curr) => acc + curr.total, 0);
+        saveOrderUpdate({ ...selectedOrder, items: updatedItems, totalValue: newTotal });
+        setEditingItemId(null);
+    };
+
+    const handleCancelEdit = () => {
+        setEditingItemId(null);
+    };
+
+    const removeItemFromOrder = (itemId: string | number) => {
         if (!selectedOrder || isReadOnly) return;
         const updatedItems = selectedOrder.items.filter(i => i.id !== itemId);
         const newTotal = updatedItems.reduce((acc, curr) => acc + curr.total, 0);
@@ -1192,14 +1229,57 @@ export const OrdersView: React.FC<OrdersViewProps> = ({ role }) => {
                                                                     {item.description}
                                                                 </div>
                                                             </td>
-                                                            <td className="p-3 text-right">{item.quantity}</td>
-                                                            <td className="p-3 text-right text-slate-500">R$ {item.unitPrice.toFixed(2)}</td>
-                                                            <td className="p-3 text-right font-bold text-slate-800">R$ {item.total.toFixed(2)}</td>
                                                             <td className="p-3 text-right">
+                                                                {editingItemId === item.id ? (
+                                                                    <input
+                                                                        type="number"
+                                                                        className="w-20 p-1 border rounded text-right"
+                                                                        value={editQty}
+                                                                        onChange={e => setEditQty(Number(e.target.value))}
+                                                                    />
+                                                                ) : (
+                                                                    item.quantity
+                                                                )}
+                                                            </td>
+                                                            <td className="p-3 text-right text-slate-500">
+                                                                {editingItemId === item.id ? (
+                                                                    <input
+                                                                        type="number"
+                                                                        step="0.01"
+                                                                        className="w-24 p-1 border rounded text-right"
+                                                                        value={editPrice}
+                                                                        onChange={e => setEditPrice(Number(e.target.value))}
+                                                                    />
+                                                                ) : (
+                                                                    `R$ ${item.unitPrice.toFixed(2)}`
+                                                                )}
+                                                            </td>
+                                                            <td className="p-3 text-right font-bold text-slate-800">
+                                                                R$ {(editingItemId === item.id ? (editQty * editPrice) : item.total).toFixed(2)}
+                                                            </td>
+                                                            <td className="p-3 text-right flex justify-end gap-2">
                                                                 {!isReadOnly && (
-                                                                    <button onClick={() => removeItemFromOrder(item.id)} className="text-red-400 hover:text-red-600">
-                                                                        <Trash2 className="w-4 h-4" />
-                                                                    </button>
+                                                                    <>
+                                                                        {editingItemId === item.id ? (
+                                                                            <>
+                                                                                <button onClick={handleSaveItem} className="text-green-600 hover:text-green-800" title="Salvar">
+                                                                                    <CheckCircle className="w-4 h-4" />
+                                                                                </button>
+                                                                                <button onClick={handleCancelEdit} className="text-slate-400 hover:text-slate-600" title="Cancelar">
+                                                                                    <Ban className="w-4 h-4" />
+                                                                                </button>
+                                                                            </>
+                                                                        ) : (
+                                                                            <>
+                                                                                <button onClick={() => handleEditItem(item)} className="text-blue-400 hover:text-blue-600" title="Editar">
+                                                                                    <Pencil className="w-4 h-4" />
+                                                                                </button>
+                                                                                <button onClick={() => removeItemFromOrder(item.id)} className="text-red-400 hover:text-red-600" title="Remover">
+                                                                                    <Trash2 className="w-4 h-4" />
+                                                                                </button>
+                                                                            </>
+                                                                        )}
+                                                                    </>
                                                                 )}
                                                             </td>
                                                         </tr>
