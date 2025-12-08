@@ -30,6 +30,14 @@ export interface User {
   clientId?: number;
 }
 
+export interface TenantSignup {
+  companyName: string;
+  plan: string;
+  adminName: string;
+  adminEmail: string;
+  adminPassword: string;
+}
+
 export interface Client {
   id: number;
   name: string;

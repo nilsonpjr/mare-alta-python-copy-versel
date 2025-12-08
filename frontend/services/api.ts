@@ -5,7 +5,7 @@ import {
     PartCreate, PartUpdate, StockMovementCreate,
     TransactionCreate, Transaction,
     Manufacturer, Model, CompanyInfo,
-    BoatCreate, BoatUpdate
+    BoatCreate, BoatUpdate, TenantSignup
 } from '../types';
 
 /**
@@ -60,6 +60,14 @@ export const ApiService = {
         // O backend retorna camelCase devido ao alias_generator do Pydantic.
         const token = response.data.accessToken || response.data.access_token;
         localStorage.setItem('token', token); // Armazena o token no localStorage.
+        return response.data;
+    },
+
+    /**
+     * Registra uma nova empresa (Tenant).
+     */
+    signup: async (data: TenantSignup) => {
+        const response = await api.post<User>('/auth/signup', data);
         return response.data;
     },
 

@@ -11,6 +11,7 @@ import { MarinasView } from './components/MarinasView';
 import { ScheduleView } from './components/ScheduleView';
 import { SettingsView } from './components/SettingsView';
 import { CRMView } from './components/CRMView';
+import { SignupView } from './components/SignupView';
 import { LoginView } from './components/LoginView';
 import { UsersView } from './components/UsersView';
 import { MaintenanceBudgetView } from './components/MaintenanceBudgetView';
@@ -22,6 +23,7 @@ function App() {
   const [currentUser, setCurrentUser] = useState<User | null>(null);
   const [currentView, setCurrentView] = useState('dashboard');
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const [showSignup, setShowSignup] = useState(false);
 
   // Initialize storage with seed data on first load
   useEffect(() => {
@@ -42,6 +44,7 @@ function App() {
   const handleLogout = () => {
     setCurrentUser(null);
     setCurrentView('dashboard');
+    setShowSignup(false);
   };
 
   const handleSetView = (view: string) => {
@@ -96,7 +99,15 @@ function App() {
   };
 
   if (!currentUser) {
-    return <LoginView onLogin={handleLogin} />;
+    if (showSignup) {
+      return (
+        <SignupView
+          onSignupSuccess={() => setShowSignup(false)}
+          onGoToLogin={() => setShowSignup(false)}
+        />
+      );
+    }
+    return <LoginView onLogin={handleLogin} onGoToSignup={() => setShowSignup(true)} />;
   }
 
   return (

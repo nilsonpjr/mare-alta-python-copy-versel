@@ -74,3 +74,20 @@ def register(
         raise HTTPException(status_code=400, detail="Email já registrado")
     # Cria o usuário no banco de dados e o retorna.
     return crud.create_user(db=db, user=user)
+
+@router.post("/signup", response_model=schemas.User)
+def signup(
+    signup_data: schemas.TenantSignup,
+    db: Session = Depends(get_db)
+):
+    """
+    Endpoint para registrar UMA NOVA EMPRESA (Tenant) no sistema.
+    Cria o Tenant e o Usuário Admin.
+    """
+    # Verifica se o email já existe (em qualquer tenant, para evitar confusão no login global)
+    db_user = crud.get_user_by_email(db, email=signup_data.admin_email)
+    if db_user:
+        raise HTTPException(status_code=400, detail="Este email já está cadastrado.")
+    
+    return crud.register_tenant(db=db, signup_data=signup_data)
+

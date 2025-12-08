@@ -57,6 +57,16 @@ class User(UserBase):
     id: int # ID único do usuário.
     tenant_id: int # ID do tenant.
 
+class TenantSignup(CamelModel):
+    """
+    Schema para cadastro de nova empresa (Tenant) + Usuário Admin.
+    """
+    company_name: str
+    plan: str = "START"
+    admin_name: str
+    admin_email: EmailStr
+    admin_password: str
+
 class Token(CamelModel):
     """
     Schema para tokens de autenticação JWT.

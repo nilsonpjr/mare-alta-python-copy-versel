@@ -16,6 +16,47 @@ from auth import get_password_hash # Importa a função para hash de senhas
 # --- USER CRUD ---
 # Funções para operações CRUD na tabela de usuários (models.User).
 
+def register_tenant(db: Session, signup_data: schemas.TenantSignup):
+    """
+    Registra uma nova empresa (Tenant) e seu primeiro usuário Admin.
+    Transação atômica.
+    """
+    # 1. Cria o Tenant
+    db_tenant = models.Tenant(
+        name=signup_data.company_name,
+        plan=signup_data.plan
+    )
+    db.add(db_tenant)
+    db.commit()
+    db.refresh(db_tenant)
+    
+    # 2. Cria o Usuário Admin vinculado ao Tenant
+    hashed_password = get_password_hash(signup_data.admin_password)
+    db_user = models.User(
+        email=signup_data.admin_email,
+        name=signup_data.admin_name,
+        hashed_password=hashed_password,
+        role=models.UserRole.ADMIN, # Primeiro usuário é sempre admin
+        tenant_id=db_tenant.id
+    )
+    db.add(db_user)
+    
+    # 3. Inicializa CompanyInfo para o Tenant
+    db_company = models.CompanyInfo(
+        tenant_id=db_tenant.id,
+        company_name=signup_data.company_name # Já preenche a Razão Social com o nome informado
+    )
+    db.add(db_company)
+    
+    try:
+        db.commit()
+        db.refresh(db_user)
+        return db_user
+    except Exception as e:
+        db.rollback()
+        raise e
+
+
 def get_user_by_email(db: Session, email: str):
     """
     Busca um usuário pelo endereço de email.
