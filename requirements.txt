@@ -19,6 +19,7 @@ idna==3.11
 lxml==4.9.4
 passlib==1.7.4
 playwright==1.40.0
+psycopg2-binary==2.9.9
 pyasn1==0.6.1
 pycparser==2.23
 pydantic==2.5.3
@@ -43,3 +44,8 @@ uvicorn==0.27.0
 uvloop==0.22.1
 watchfiles==1.1.1
 websockets==15.0.1
+
+# Testing dependencies
+pytest==7.4.3
+pytest-cov==4.1.0
+httpx==0.25.2

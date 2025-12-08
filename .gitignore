@@ -51,3 +51,4 @@ build/
 venv/
 .venv/
 *.db
+.vercel
