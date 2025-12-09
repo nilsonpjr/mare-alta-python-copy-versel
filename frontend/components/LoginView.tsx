@@ -106,20 +106,7 @@ export const LoginView: React.FC<LoginViewProps> = ({ onLogin, onGoToSignup }) =
             )}
           </form>
 
-          <div className="mt-8 pt-6 border-t border-slate-100">
-            <p className="text-xs text-center text-slate-400 mb-3 font-semibold uppercase">Ambiente de Demonstração</p>
-            <div className="grid grid-cols-3 gap-2">
-              <button onClick={() => { setEmail('admin@marealta.com'); setPassword('123456'); }} className="p-2 rounded bg-slate-50 hover:bg-slate-100 text-xs text-slate-600 border border-slate-200 transition-colors flex flex-col items-center gap-1">
-                <UserCircle className="w-4 h-4 text-red-500" /> Admin
-              </button>
-              <button onClick={() => { setEmail('tecnico@marealta.com'); setPassword('123456'); }} className="p-2 rounded bg-slate-50 hover:bg-slate-100 text-xs text-slate-600 border border-slate-200 transition-colors flex flex-col items-center gap-1">
-                <UserCircle className="w-4 h-4 text-green-500" /> Técnico
-              </button>
-              <button onClick={() => { setEmail('cliente@marealta.com'); setPassword('123456'); }} className="p-2 rounded bg-slate-50 hover:bg-slate-100 text-xs text-slate-600 border border-slate-200 transition-colors flex flex-col items-center gap-1">
-                <UserCircle className="w-4 h-4 text-blue-500" /> Cliente
-              </button>
-            </div>
-          </div>
+
         </div>
       </div>
 
