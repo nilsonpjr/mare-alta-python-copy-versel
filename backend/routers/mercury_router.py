@@ -32,16 +32,23 @@ router = APIRouter(
 
 # --- FUNÇÕES AUXILIARES (PLAYWRIGHT) ---
 
-from playwright.async_api import async_playwright
+# from playwright.async_api import async_playwright # Removido import global
 
 async def search_product_playwright(item: str, username: str, password: str) -> List[Dict[str, str]]:
     """
     Pesquisa produtos no Portal Mercury Marine usando Playwright.
     """
+    try:
+        from playwright.async_api import async_playwright
+    except ImportError:
+        print("Playwright não instalado. Scraper desativado.")
+        return []
+
     # O user agent e headless mode devem ser configurados
     async with async_playwright() as p:
         browser = await p.chromium.launch(headless=True)
         page = await browser.new_page()
+
 
         try:
             # Login
@@ -122,6 +129,12 @@ async def search_warranty_playwright(nro_motor: str, username: str, password: st
     """
     Busca garantia usando Playwright.
     """
+    try:
+        from playwright.async_api import async_playwright
+    except ImportError:
+        print("Playwright não instalado. Scraper desativado.")
+        return None
+
     async with async_playwright() as p:
         browser = await p.chromium.launch(headless=True)
         page = await browser.new_page()
