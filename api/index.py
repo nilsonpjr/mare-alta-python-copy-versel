@@ -1,20 +1,26 @@
+from fastapi import FastAPI
+from fastapi.responses import JSONResponse
 import sys
 import os
+import traceback
 
-# Adiciona o diretório raiz do projeto ao PYTHONPATH para importar 'backend'
-# No Vercel, o diretório atual é geralmente a raiz do projeto.
+# Configura paths
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 sys.path.append(os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "backend"))
 
 try:
     from backend.main import app
-except ImportError as e:
-    # Fallback caso a importação direta falhe
-    print(f"Erro ao importar backend.main: {e}")
-    try:
-        from main import app
-    except ImportError as e2:
-        print(f"Erro ao importar main: {e2}")
-        raise e2
+except Exception as e:
+    # Se falhar o import (banco, dependencias, etc), cria um app de fallback que mostra o erro
+    error_msg = f"Startup Error: {str(e)}\n\nTraceback:\n{traceback.format_exc()}"
+    print(error_msg) # Log no console do Vercel
+    
+    app = FastAPI()
+    
+    @app.get("/api/{full_path:path}")
+    def api_error_handler(full_path: str):
+         return JSONResponse(status_code=500, content={"error": "Failed to start application", "detail": error_msg})
 
-# O Vercel precisa da variável 'app' exposta
+    @app.get("/{full_path:path}")
+    def error_handler(full_path: str):
+         return JSONResponse(status_code=500, content={"error": "Failed to start application", "detail": error_msg})
