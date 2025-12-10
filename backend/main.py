@@ -68,6 +68,14 @@ async def log_requests(request, call_next):
     if request.url.path.startswith("/assets"):
         print(f"ASSET RESPONSE: {request.url.path} -> {response.status_code}")
     return response
+# Endpoint para forçar criação de tabelas (Útil para Vercel Cold Start issues)
+@app.get("/api/config/init-db")
+def init_db():
+    try:
+        models.Base.metadata.create_all(bind=engine)
+        return {"message": "Tabelas criadas com sucesso!"}
+    except Exception as e:
+        return {"error": str(e)}
 
 # Inclui todos os roteadores na aplicação principal.
 # Cada roteador adiciona suas próprias rotas baseadas nos prefixos definidos neles.
