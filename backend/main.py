@@ -36,6 +36,9 @@ app = FastAPI(title="Mare Alta API")
 # Configura o Middleware CORS (Cross-Origin Resource Sharing).
 # Isso permite que o frontend (executando em um domínio/porta diferente)
 # faça requisições para esta API.
+# Configura o Middleware CORS (Cross-Origin Resource Sharing).
+# Isso permite que o frontend (executando em um domínio/porta diferente)
+# faça requisições para esta API.
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],  # Permite requisições de qualquer origem. Em produção, isso deve ser mais restritivo.
@@ -44,9 +47,21 @@ app.add_middleware(
     allow_headers=["*"],  # Permite todos os cabeçalhos nas requisições.
 )
 
+# Exception Handler Global para Debug em Produção
+@app.exception_handler(Exception)
+async def debug_exception_handler(request, exc):
+    import traceback
+    error_msg = f"UNHANDLED EXCEPTION: {str(exc)}\n\nTraceback:\n{traceback.format_exc()}"
+    print(error_msg) # Log no server logs (Vercel)
+    return JSONResponse(
+        status_code=500,
+        content={"detail": error_msg, "error_type": type(exc).__name__},
+    )
+
 # Middleware de Logging para Debug
 @app.middleware("http")
 async def log_requests(request, call_next):
+
     print(f"REQUEST LOG: {request.method} {request.url.path}")
     response = await call_next(request)
     # Log assets responses to see if they are 200 or 404
