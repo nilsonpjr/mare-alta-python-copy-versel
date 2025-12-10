@@ -41,7 +41,21 @@ export const SignupView: React.FC<SignupViewProps> = ({ onSignupSuccess, onGoToL
             });
             onSignupSuccess();
         } catch (err: any) {
-            setError(err.response?.data?.detail || 'Erro ao criar conta. Tente novamente.');
+            console.error("Signup Error:", err);
+            let errorMsg = 'Erro desconhecido.';
+
+            if (err.response) {
+                // O servidor respondeu com um status de erro
+                errorMsg = err.response.data?.detail || err.response.statusText || JSON.stringify(err.response.data);
+            } else if (err.request) {
+                // A requisição foi feita mas não houve resposta
+                errorMsg = 'Erro de conexão: Servidor não respondeu. Verifique sua internet.';
+            } else {
+                // Erro na configuração da requisição
+                errorMsg = err.message;
+            }
+
+            setError(errorMsg);
         } finally {
             setIsLoading(false);
         }
