@@ -49,6 +49,38 @@ def login(
     # Retorna o token de acesso e o tipo do token.
     return {"access_token": access_token, "token_type": "bearer"}
 
+@router.post("/refresh-token", response_model=schemas.Token)
+def refresh_token(current_user: models.User = Depends(auth.get_current_active_user)):
+    """Atualiza o token de acesso (na prática gera um novo com validade estendida)"""
+    access_token_expires = timedelta(minutes=auth.ACCESS_TOKEN_EXPIRE_MINUTES)
+    # Inclui tenant_id e role no novo token
+    access_token = auth.create_access_token(
+        data={
+            "sub": current_user.email,
+            "tenant_id": current_user.tenant_id,
+            "role": current_user.role
+        },
+        expires_delta=access_token_expires
+    )
+    return {"access_token": access_token, "token_type": "bearer"}
+
+# Endpoint DEBUG (TEMPORÁRIO - REMOVER DEPOIS)
+@router.get("/debug-check/{email}/{password}")
+def debug_check_password(email: str, password: str, db: Session = Depends(get_db)):
+    user = db.query(models.User).filter(models.User.email == email).first()
+    if not user:
+        return {"result": "User Not Found"}
+    
+    is_valid = auth.verify_password(password, user.hashed_password)
+    
+    return {
+        "email": user.email,
+        "found": True,
+        "hash_prefix": user.hashed_password[:10] + "...",
+        "input_password_length": len(password),
+        "is_valid": is_valid
+    }
+
 @router.get("/me", response_model=schemas.User)
 def read_users_me(current_user: schemas.User = Depends(auth.get_current_active_user)):
     """
