@@ -19,5 +19,5 @@ DROP TABLE IF EXISTS company_info CASCADE;
 DROP TABLE IF EXISTS invoices CASCADE;
 DROP TABLE IF EXISTS tenants CASCADE;
 
--- Depois de rodar isso, acesse o site novamente. 
+-- Depois de rodar isso, acesse o site novam ente. 
 -- O Backend irá recriar todas as tabelas automaticamente com as colunas novas (tenant_id).
