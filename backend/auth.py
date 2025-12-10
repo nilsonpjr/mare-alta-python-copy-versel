@@ -49,11 +49,21 @@ def create_access_token(data: dict, expires_delta: Optional[timedelta] = None):
 
 def authenticate_user(db: Session, email: str, password: str):
     """Autentica usuário e retorna com tenant_id"""
+    print(f"DEBUG LOGIN: Tentando autenticar {email}")
     user = db.query(models.User).filter(models.User.email == email).first()
     if not user:
+        print("DEBUG LOGIN: Usuário não encontrado no banco.")
         return False
+    
+    print(f"DEBUG LOGIN: Usuário encontrado (ID: {user.id}). Verificando senha...")
     if not verify_password(password, user.hashed_password):
+        print("DEBUG LOGIN: Senha incorreta.")
+        print(f"DEBUG LOGIN: Hash no banco: {user.hashed_password[:10]}...")
+        # Debug: check if verify works with manual hash
+        # print(f"DEBUG LOGIN: Test verify: {pwd_context.verify(password, user.hashed_password)}")
         return False
+        
+    print("DEBUG LOGIN: Senha correta.")
     return user
 
 def get_current_user(
