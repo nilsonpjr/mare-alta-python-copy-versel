@@ -82,6 +82,10 @@ def debug_check_password(email: str, password: str, db: Session = Depends(get_db
         "is_valid": is_valid
     }
 
+@router.get("/debug-generate/{password}")
+def debug_generate_hash(password: str):
+    return {"password": password, "hash": auth.get_password_hash(password)}
+
 @router.get("/me", response_model=schemas.User)
 def read_users_me(current_user: schemas.User = Depends(auth.get_current_active_user)):
     """
