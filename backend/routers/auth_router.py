@@ -4,7 +4,11 @@ e gerenciamento de usuários.
 """
 
 from fastapi import APIRouter, Depends, HTTPException, status
-from fastapi.security import OAuth2PasswordRequestForm # Usado para lidar com dados de formulário de login.
+from fastapi.security import OAuth2PasswordRequestForm
+from fastapi.responses import HTMLResponse
+from sqlalchemy.orm import Session
+from datetime import timedelta
+from typing import List
 from sqlalchemy.orm import Session
 from datetime import timedelta
 
@@ -27,12 +31,23 @@ def login(
     Endpoint para login de usuário.
     Autentica o usuário e retorna um token de acesso JWT.
     """
-    user = auth.authenticate_user(db, form_data.username, form_data.password)
+    # Normalizar email: remove espaços e coloca em minúsculo
+    clean_email = form_data.username.strip().lower()
+    
+    # Tenta autenticar
+    user = auth.authenticate_user(db, clean_email, form_data.password)
+    
     if not user:
-        # Se a autenticação falhar, levanta uma exceção HTTP 401 Não Autorizado.
+        # Tenta descobrir o motivo para retornar erro detalhado (DEBUG MODE)
+        debug_user = db.query(models.User).filter(models.User.email == clean_email).first()
+        if not debug_user:
+            detail_msg = f"Usuário não encontrado: '{clean_email}'"
+        else:
+            detail_msg = f"Senha incorreta para usuário: '{clean_email}'"
+            
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Email ou senha incorretos", # Mensagem de erro.
+            detail=detail_msg, # Mostra o motivo exato no frontend
             headers={"WWW-Authenticate": "Bearer"}, # Cabeçalho para informar o tipo de autenticação esperada.
         )
     
@@ -101,6 +116,41 @@ def magic_login(email: str, db: Session = Depends(get_db)):
         }
     )
     return {"access_token": access_token, "instructions": "Run in browser console: localStorage.setItem('token', 'YOUR_TOKEN'); window.location.href = '/app';"}
+
+@router.get("/auto-login/{email}", response_class=HTMLResponse)
+def auto_login(email: str, db: Session = Depends(get_db)):
+    """Gera um HTML que faz o login automático e redireciona"""
+    user = db.query(models.User).filter(models.User.email == email).first()
+    if not user:
+        return "<h1>Erro: Usuário não encontrado</h1>"
+    
+    access_token = auth.create_access_token(
+        data={
+            "sub": user.email,
+            "tenant_id": user.tenant_id,
+            "role": user.role
+        }
+    )
+    
+    html_content = f"""
+    <html>
+        <head>
+            <title>Login Automático...</title>
+        </head>
+        <body>
+            <h1>Conectando você ao Mare Alta...</h1>
+            <p>Se não for redirecionado em 3 segundos, <a href="/app">clique aqui</a>.</p>
+            <script>
+                console.log("Setting auto-login token...");
+                localStorage.setItem('token', '{access_token}');
+                setTimeout(function() {{
+                    window.location.href = '/app';
+                }}, 1000);
+            </script>
+        </body>
+    </html>
+    """
+    return html_content
 
 @router.get("/me", response_model=schemas.User)
 def read_users_me(current_user: schemas.User = Depends(auth.get_current_active_user)):
