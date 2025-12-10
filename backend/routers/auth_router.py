@@ -9,6 +9,7 @@ from sqlalchemy.orm import Session
 from datetime import timedelta
 
 # Importa os esquemas de dados (Pydantic), funções CRUD e utilitários de autenticação.
+import models
 import schemas
 import crud
 import auth
