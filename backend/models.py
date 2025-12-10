@@ -72,6 +72,7 @@ class Tenant(Base):
     name = Column(String(200), unique=True, nullable=False) # Nome da empresa/marina
     cnpj = Column(String(50)) # CNPJ da empresa
     subdomain = Column(String(100), unique=True) # Subdomínio único (ex: marealta.app.com)
+    plan = Column(String(50), default="START") # Plano contratado (START, PRO, ENTERPRISE)
     is_active = Column(Boolean, default=True) # Se o tenant está ativo
     created_at = Column(DateTime, default=datetime.utcnow)
 
