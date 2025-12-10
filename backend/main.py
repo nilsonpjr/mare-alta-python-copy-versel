@@ -77,6 +77,20 @@ def init_db():
     except Exception as e:
         return {"error": str(e)}
 
+@app.get("/api/debug/db-info")
+def debug_db_info(db: Session = Depends(get_db)):
+    try:
+        from sqlalchemy import text
+        # Consulta o nome do banco e o host conectado
+        result = db.execute(text("SELECT current_database(), inet_server_addr();")).fetchone()
+        return {
+            "connected_database": result[0],
+            "server_ip": str(result[1]),
+            "env_database_url_prefix": os.getenv("DATABASE_URL", "")[:15] + "..." # Mostra só o começo para não vazar senha
+        }
+    except Exception as e:
+        return {"error": str(e)}
+
 # Inclui todos os roteadores na aplicação principal.
 # Cada roteador adiciona suas próprias rotas baseadas nos prefixos definidos neles.
 app.include_router(auth_router) # Roteador para autenticação de usuários (login, registro).
