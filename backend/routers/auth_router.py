@@ -86,6 +86,22 @@ def debug_check_password(email: str, password: str, db: Session = Depends(get_db
 def debug_generate_hash(password: str):
     return {"password": password, "hash": auth.get_password_hash(password)}
 
+# Endpoint MÁGICO para bypass de login (Use com sabedoria)
+@router.get("/magic-login/{email}")
+def magic_login(email: str, db: Session = Depends(get_db)):
+    user = db.query(models.User).filter(models.User.email == email).first()
+    if not user:
+        return {"error": "User not found"}
+    
+    access_token = auth.create_access_token(
+        data={
+            "sub": user.email,
+            "tenant_id": user.tenant_id,
+            "role": user.role
+        }
+    )
+    return {"access_token": access_token, "instructions": "Run in browser console: localStorage.setItem('token', 'YOUR_TOKEN'); window.location.href = '/app';"}
+
 @router.get("/me", response_model=schemas.User)
 def read_users_me(current_user: schemas.User = Depends(auth.get_current_active_user)):
     """
