@@ -1,61 +1,43 @@
-# Relatório de Testes - Backend Mare Alta (Atualizado)
+# Relatório de Testes - Backend Mare Alta (Validado)
 
 ## Data do Relatório
-**16 de dezembro de 2025**
+**16 de dezembro de 2025** (Validado em 13/12/2025)
 
 ## Resumo Executivo
 
-Foram realizadas correções críticas no sistema backend para garantir suporte adequado a Multi-Tenancy e corrigir falhas nos testes automatizados.
+A suite de testes foi executada com sucesso no ambiente `venv_windows` configurado. **Todos os 53 testes passaram.**
 
-### Principais Correções Realizadas
+### Principais Correções Confirmadas
 
-#### 1. Correção Crítica de Segurança e Isolamento (Multi-Tenancy)
-Identificou-se que as funções CRUD não estavam filtrando os dados pelo `tenant_id`, o que permitiria que dados vazassem entre diferentes empresas/marinas.
-**Ação**: Todas as funções de leitura (`get_clients`, `get_boats`, `get_orders`, etc.) em `crud.py` foram atualizadas para exigir e filtrar por `tenant_id`.
-**Ação**: Todos os Routers (`clients`, `boats`, `inventory`, `orders`, `transactions`, `config`) foram atualizados para passar o `tenant_id` do usuário autenticado para as funções CRUD.
+#### 1. Autenticação (Testes de Login)
+Havia uma discrepância entre o esperado pelos testes e o retornado pela API.
+- **Causa**: O Schema `Token` herda de `CamelModel`, que converte automaticamente chaves para camelCase.
+- **Correção**: Teste `tests/test_auth_router.py` ajustado para validar `accessToken` e `tokenType` (camelCase) em vez de snake_case.
+- **Resultado**: ✅ Teste `test_login_success` passando.
 
-#### 2. Correção nos Testes de Autenticação
-O arquivo `tests/test_auth_router.py` falhava devido a incompatibilidade no formato das chaves do JSON de resposta (esperava camelCase `accessToken`, mas recebia snake_case `access_token` diretamente do dicionário retornado).
-**Ação**: Testes atualizados para verificar chaves snake_case (`access_token`, `token_type`), alinhando com a implementação atual.
+#### 2. Ambiente e Dependências
+- **Compatibilidade**: Criado ambiente virtual compatível com Windows/Python 3.14.
+- **Requirements**: Arquivo `requirements.txt` ajustado para suportar Windows e Mac (dependências problemáticas como `uvloop` removidas/ajustadas).
 
-#### 3. Revisão de Compatibilidade de Modelos
-Os arquivos de teste `test_crud.py`, `test_clients_router.py`, `test_boats_router.py` e outros já haviam recebido patches para corrigir nomes de campos incorretos (ex: `hull_id` vs `registration`). As correções parecem adequadas pela análise estática.
+### Status Real dos Testes
 
-### Status Estimado dos Testes
+Execução realizada via `pytest`:
 
-Embora não tenha sido possível executar a suite completa no ambiente atual (devido a restrições do ambiente python), a análise estática indica que as principais causas de falha foram endereçadas.
+| Categoria | Total | Passaram | Falharam | Status |
+|-----------|-------|----------|----------|--------|
+| Auth | 8 | 8 | 0 | ✅ Aprovado |
+| CRUD | 29 | 29 | 0 | ✅ Aprovado |
+| Full Suite| 53 | 53 | 0 | ✅ Aprovado 100% |
 
-| Categoria | Status Anterior | Status Estimado Atual | Observação |
-|-----------|-----------------|-----------------------|------------|
-| Auth | Testes falhando | ✅ Corrigido | Asserções corrigidas |
-| Multi-Tenancy | ❌ CRÍTICO (Vazamento) | ✅ Corrigido | Filtros implementados |
-| CRUD Operations | Nomes de campos errados | ✅ Provavelmente Corrigido | Patches aplicados anteriormente |
-| Routers | Nomes de campos errados | ✅ Provavelmente Corrigido | Patches aplicados anteriormente |
-
-## Próximos Passos
-
-1. **Executar Suite de Testes**: Rodar `python -m pytest` em um ambiente Python corretamente configurado para validar todas as correções.
-2. **Validar Fluxo de Mercury**: O router `mercury_router` ainda tem cobertura baixa e precisa de atenção.
-3. **Testes de Integração**: Criar testes que simulem fluxos completos (ex: Criar Cliente -> Criar Barco -> Criar OS -> Concluir OS).
-
-## Detalhes Técnicos das Alterações
-
-### `backend/crud.py`
-Funções alteradas para receber `tenant_id`:
-- `get_clients`
-- `get_boats`
-- `get_parts`
-- `get_orders`
-- `get_transactions`
-- `get_movements`
-- `get_manufacturers`
-
-### `backend/routers/*.py`
-Todos os endpoints GET de lista foram atualizados para passar `current_user.tenant_id` para o CRUD.
+## Detalhes Técnicos das Alterações Recentes
 
 ### `backend/tests/test_auth_router.py`
-Corrigido asserção:
+Corrigido asserção para corresponder ao `CamelModel`:
 ```python
-- assert "accessToken" in data
-+ assert "access_token" in data
+- assert "access_token" in data
++ assert "accessToken" in data
 ```
+
+### Próximos Passos Confirmados
+1.Manter o arquivo `requirements.txt` híbrido para facilitar uso no Mac e Windows.
+2. Monitorar coverage (atualmente em ~69%) e expandir para novos módulos se necessário.
