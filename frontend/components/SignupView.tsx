@@ -39,6 +39,7 @@ export const SignupView: React.FC<SignupViewProps> = ({ onSignupSuccess, onGoToL
                 adminEmail: formData.adminEmail,
                 adminPassword: formData.adminPassword
             });
+            alert("Conta criada com sucesso! Faça login para acessar.");
             onSignupSuccess();
         } catch (err: any) {
             console.error("Signup Error:", err);

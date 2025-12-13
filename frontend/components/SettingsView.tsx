@@ -34,6 +34,7 @@ export const SettingsView: React.FC = () => {
     const handleSaveCompanyInfo = async () => {
         setLoading(true);
         try {
+            console.log("Salvando informações da empresa (Debug):", companyInfo);
             await ApiService.updateCompanyInfo(companyInfo);
             alert("Configurações salvas com sucesso!");
         } catch (error: any) {
