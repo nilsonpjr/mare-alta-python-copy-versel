@@ -18,6 +18,7 @@ import { MaintenanceBudgetView } from './components/MaintenanceBudgetView';
 import { UserRole, User } from './types';
 import { Menu, Anchor } from 'lucide-react';
 import { StorageService } from './services/storage';
+import { SpeedInsights } from "@vercel/speed-insights/react";
 
 function App() {
   const [currentUser, setCurrentUser] = useState<User | null>(null);
@@ -111,41 +112,44 @@ function App() {
   }
 
   return (
-    <div className="flex bg-slate-50 min-h-screen font-sans">
-      {/* Mobile Header */}
-      <div className="md:hidden fixed top-0 left-0 right-0 h-16 bg-slate-900 z-40 flex items-center px-4 justify-between shadow-md">
-        <div className="flex items-center gap-3 text-white">
-          <div className="w-8 h-8 bg-gradient-to-br from-cyan-500 to-blue-600 rounded-lg flex items-center justify-center">
-            <Anchor className="w-5 h-5 text-white" />
+    <>
+      <div className="flex bg-slate-50 min-h-screen font-sans">
+        {/* Mobile Header */}
+        <div className="md:hidden fixed top-0 left-0 right-0 h-16 bg-slate-900 z-40 flex items-center px-4 justify-between shadow-md">
+          <div className="flex items-center gap-3 text-white">
+            <div className="w-8 h-8 bg-gradient-to-br from-cyan-500 to-blue-600 rounded-lg flex items-center justify-center">
+              <Anchor className="w-5 h-5 text-white" />
+            </div>
+            <span className="font-bold tracking-wide">MARE ALTA</span>
           </div>
-          <span className="font-bold tracking-wide">MARE ALTA</span>
+          <button onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)} className="text-white p-2">
+            <Menu className="w-6 h-6" />
+          </button>
         </div>
-        <button onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)} className="text-white p-2">
-          <Menu className="w-6 h-6" />
-        </button>
-      </div>
 
-      <Sidebar
-        currentView={currentView}
-        setView={handleSetView}
-        currentUser={currentUser}
-        onLogout={handleLogout}
-        isOpen={isMobileMenuOpen}
-        onClose={() => setIsMobileMenuOpen(false)}
-      />
-
-      {/* Overlay for mobile menu */}
-      {isMobileMenuOpen && (
-        <div
-          className="fixed inset-0 bg-black/50 z-40 md:hidden"
-          onClick={() => setIsMobileMenuOpen(false)}
+        <Sidebar
+          currentView={currentView}
+          setView={handleSetView}
+          currentUser={currentUser}
+          onLogout={handleLogout}
+          isOpen={isMobileMenuOpen}
+          onClose={() => setIsMobileMenuOpen(false)}
         />
-      )}
 
-      <main className="flex-1 h-screen overflow-y-auto pt-16 md:pt-0 md:ml-64 transition-all duration-300">
-        {renderContent()}
-      </main>
-    </div>
+        {/* Overlay for mobile menu */}
+        {isMobileMenuOpen && (
+          <div
+            className="fixed inset-0 bg-black/50 z-40 md:hidden"
+            onClick={() => setIsMobileMenuOpen(false)}
+          />
+        )}
+
+        <main className="flex-1 h-screen overflow-y-auto pt-16 md:pt-0 md:ml-64 transition-all duration-300">
+          {renderContent()}
+        </main>
+      </div>
+      <SpeedInsights />
+    </>
   );
 }
 
