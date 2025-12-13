@@ -36,7 +36,7 @@ signxml
 six==1.17.0
 sniffio==1.3.1
 soupsieve==2.8
-SQLAlchemy==2.0.25
+SQLAlchemy>=2.0.30
 starlette==0.35.1
 typing_extensions==4.15.0
 urllib3==2.5.0
@@ -48,4 +48,6 @@ websockets==15.0.1
 # Testing dependencies
 pytest==7.4.3
 pytest-cov==4.1.0
+pytest-asyncio==0.23.2
 httpx==0.25.2
+
