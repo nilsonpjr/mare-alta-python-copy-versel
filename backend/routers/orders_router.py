@@ -28,7 +28,7 @@ def get_all_service_orders(
     Requer autenticação.
     """
     # Chama a função CRUD para buscar as ordens de serviço do banco de dados.
-    return crud.get_orders(db, status=status)
+    return crud.get_orders(db, tenant_id=current_user.tenant_id, status=status)
 
 @router.get("/{order_id}", response_model=schemas.ServiceOrder)
 def get_single_service_order(

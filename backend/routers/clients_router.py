@@ -25,7 +25,7 @@ def get_all_clients(
     Requer autenticação.
     """
     # Chama a função CRUD para obter os clientes do banco de dados.
-    return crud.get_clients(db)
+    return crud.get_clients(db, tenant_id=current_user.tenant_id)
 
 @router.post("", response_model=schemas.Client)
 def create_new_client(

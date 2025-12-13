@@ -30,7 +30,7 @@ def get_all_manufacturers(
     Requer autenticação.
     """
     # Chama a função CRUD para obter os fabricantes do banco de dados.
-    return crud.get_manufacturers(db, type=type)
+    return crud.get_manufacturers(db, tenant_id=current_user.tenant_id, type=type)
 
 @router.post("/manufacturers", response_model=schemas.Manufacturer)
 def create_new_manufacturer(

@@ -94,17 +94,18 @@ def create_user(db: Session, user: schemas.UserCreate):
 # --- CLIENT CRUD ---
 # Funções para operações CRUD na tabela de clientes (models.Client).
 
-def get_clients(db: Session, skip: int = 0, limit: int = 100):
+def get_clients(db: Session, tenant_id: int, skip: int = 0, limit: int = 100):
     """
-    Retorna uma lista de clientes.
+    Retorna uma lista de clientes de um tenant.
     Args:
         db (Session): Sessão do banco de dados.
+        tenant_id (int): ID do tenant.
         skip (int): Número de registros a pular (offset para paginação).
         limit (int): Número máximo de registros a retornar.
     Returns:
         List[models.Client]: Lista de objetos cliente.
     """
-    return db.query(models.Client).offset(skip).limit(limit).all()
+    return db.query(models.Client).filter(models.Client.tenant_id == tenant_id).offset(skip).limit(limit).all()
 
 def get_client(db: Session, client_id: int):
     """
@@ -194,16 +195,17 @@ def create_marina(db: Session, marina: schemas.MarinaCreate):
 # --- BOAT CRUD ---
 # Funções para operações CRUD na tabela de embarcações (models.Boat).
 
-def get_boats(db: Session, client_id: Optional[int] = None):
+def get_boats(db: Session, tenant_id: int, client_id: Optional[int] = None):
     """
-    Retorna uma lista de embarcações, opcionalmente filtrada por ID do cliente.
+    Retorna uma lista de embarcações, filtrada por tenant e opcionalmente por ID do cliente.
     Args:
         db (Session): Sessão do banco de dados.
+        tenant_id (int): ID do tenant.
         client_id (Optional[int]): ID do cliente para filtrar as embarcações.
     Returns:
         List[models.Boat]: Lista de objetos embarcação.
     """
-    query = db.query(models.Boat)
+    query = db.query(models.Boat).filter(models.Boat.tenant_id == tenant_id)
     if client_id:
         query = query.filter(models.Boat.client_id == client_id)
     return query.all()
@@ -291,15 +293,16 @@ def update_boat(db: Session, boat_id: int, boat_update: schemas.BoatUpdate):
 # --- PART CRUD ---
 # Funções para operações CRUD na tabela de peças (models.Part).
 
-def get_parts(db: Session):
+def get_parts(db: Session, tenant_id: int):
     """
-    Retorna uma lista de todas as peças.
+    Retorna uma lista de todas as peças de um tenant.
     Args:
         db (Session): Sessão do banco de dados.
+        tenant_id (int): ID do tenant.
     Returns:
         List[models.Part]: Lista de objetos peça.
     """
-    return db.query(models.Part).all()
+    return db.query(models.Part).filter(models.Part.tenant_id == tenant_id).all()
 
 def get_part(db: Session, part_id: int):
     """
@@ -358,17 +361,18 @@ def update_part(db: Session, part_id: int, part_update: schemas.PartUpdate):
 # --- SERVICE ORDER CRUD ---
 # Funções para operações CRUD na tabela de ordens de serviço (models.ServiceOrder).
 
-def get_orders(db: Session, status: Optional[str] = None):
+def get_orders(db: Session, tenant_id: int, status: Optional[str] = None):
     """
-    Retorna uma lista de ordens de serviço, opcionalmente filtrada por status.
+    Retorna uma lista de ordens de serviço de um tenant, opcionalmente filtrada por status.
     Carrega os itens e notas relacionadas para evitar N+1 queries.
     Args:
         db (Session): Sessão do banco de dados.
+        tenant_id (int): ID do tenant.
         status (Optional[str]): Status da OS para filtrar.
     Returns:
         List[models.ServiceOrder]: Lista de objetos ordem de serviço.
     """
-    query = db.query(models.ServiceOrder).options(
+    query = db.query(models.ServiceOrder).filter(models.ServiceOrder.tenant_id == tenant_id).options(
         joinedload(models.ServiceOrder.items), # Carrega os itens da OS
         joinedload(models.ServiceOrder.notes) # Carrega as notas da OS
     ).order_by(desc(models.ServiceOrder.created_at)) # Ordena pelas mais recentes
@@ -520,15 +524,16 @@ def complete_order(db: Session, order_id: int):
 # --- TRANSACTION CRUD ---
 # Funções para operações CRUD na tabela de transações (models.Transaction).
 
-def get_transactions(db: Session):
+def get_transactions(db: Session, tenant_id: int):
     """
-    Retorna uma lista de todas as transações financeiras, ordenadas por data.
+    Retorna uma lista de todas as transações financeiras de um tenant, ordenadas por data.
     Args:
         db (Session): Sessão do banco de dados.
+        tenant_id (int): ID do tenant.
     Returns:
         List[models.Transaction]: Lista de objetos transação.
     """
-    return db.query(models.Transaction).order_by(desc(models.Transaction.date)).all()
+    return db.query(models.Transaction).filter(models.Transaction.tenant_id == tenant_id).order_by(desc(models.Transaction.date)).all()
 
 def create_transaction(db: Session, transaction: schemas.TransactionCreate):
     """
@@ -548,16 +553,17 @@ def create_transaction(db: Session, transaction: schemas.TransactionCreate):
 # --- STOCK MOVEMENT CRUD ---
 # Funções para operações CRUD na tabela de movimentos de estoque (models.StockMovement).
 
-def get_movements(db: Session, part_id: Optional[int] = None):
+def get_movements(db: Session, tenant_id: int, part_id: Optional[int] = None):
     """
-    Retorna uma lista de movimentos de estoque, opcionalmente filtrada por ID da peça.
+    Retorna uma lista de movimentos de estoque de um tenant, opcionalmente filtrada por ID da peça.
     Args:
         db (Session): Sessão do banco de dados.
+        tenant_id (int): ID do tenant.
         part_id (Optional[int]): ID da peça para filtrar os movimentos.
     Returns:
         List[models.StockMovement]: Lista de objetos movimento de estoque.
     """
-    query = db.query(models.StockMovement).order_by(desc(models.StockMovement.date))
+    query = db.query(models.StockMovement).filter(models.StockMovement.tenant_id == tenant_id).order_by(desc(models.StockMovement.date))
     if part_id:
         query = query.filter(models.StockMovement.part_id == part_id)
     return query.all()
@@ -593,17 +599,18 @@ def create_stock_movement(db: Session, movement: schemas.StockMovementCreate, us
 # --- CONFIG CRUD ---
 # Funções para operações CRUD relacionadas a configurações (fabricantes, modelos, informações da empresa).
 
-def get_manufacturers(db: Session, type: Optional[str] = None):
+def get_manufacturers(db: Session, tenant_id: int, type: Optional[str] = None):
     """
-    Retorna uma lista de fabricantes, opcionalmente filtrada por tipo (BOAT ou ENGINE).
+    Retorna uma lista de fabricantes de um tenant, opcionalmente filtrada por tipo (BOAT ou ENGINE).
     Carrega os modelos relacionados para evitar N+1 queries.
     Args:
         db (Session): Sessão do banco de dados.
+        tenant_id (int): ID do tenant.
         type (Optional[str]): Tipo do fabricante para filtrar.
     Returns:
         List[models.Manufacturer]: Lista de objetos fabricante.
     """
-    query = db.query(models.Manufacturer).options(joinedload(models.Manufacturer.models))
+    query = db.query(models.Manufacturer).filter(models.Manufacturer.tenant_id == tenant_id).options(joinedload(models.Manufacturer.models))
     if type:
         query = query.filter(models.Manufacturer.type == type)
     return query.all()

@@ -29,7 +29,7 @@ def get_all_parts(
     Requer autenticação.
     """
     # Chama a função CRUD para buscar todas as peças do banco de dados.
-    return crud.get_parts(db)
+    return crud.get_parts(db, tenant_id=current_user.tenant_id)
 
 @router.get("/parts/{part_id}", response_model=schemas.Part)
 def get_single_part(
@@ -102,7 +102,7 @@ def get_all_movements(
     Requer autenticação.
     """
     # Chama a função CRUD para buscar as movimentações de estoque.
-    return crud.get_movements(db, part_id=part_id)
+    return crud.get_movements(db, tenant_id=current_user.tenant_id, part_id=part_id)
 
 @router.post("/movements", response_model=schemas.StockMovement)
 def create_stock_movement(

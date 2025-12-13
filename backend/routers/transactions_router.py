@@ -26,7 +26,7 @@ def get_all_transactions(
     Requer autenticação.
     """
     # Chama a função CRUD para obter todas as transações do banco de dados.
-    return crud.get_transactions(db)
+    return crud.get_transactions(db, tenant_id=current_user.tenant_id)
 
 @router.post("", response_model=schemas.Transaction)
 def create_new_transaction(

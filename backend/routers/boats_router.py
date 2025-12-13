@@ -26,7 +26,7 @@ def get_all_boats(
     Requer autenticação.
     """
     # Chama a função CRUD para obter as embarcações do banco de dados.
-    return crud.get_boats(db, client_id=client_id)
+    return crud.get_boats(db, tenant_id=current_user.tenant_id, client_id=client_id)
 
 @router.post("", response_model=schemas.Boat)
 def create_new_boat(
