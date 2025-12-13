@@ -28,6 +28,7 @@ Este documento serve como nosso **"Mapa de Controle"** para garantir que o Plano
 - [x] **Login & Autenticação Real:** JWT atualizado com `tenant_id` no payload e validação
 - [ ] **Middleware de Tenant:** Filtrar queries automaticamente baseado no tenant (próximo passo)
 - [ ] **Atualizar CRUDs:** Adicionar filtro de tenant_id em todos os endpoints
+- [ ] **Internacionalização (i18n):** Implementar suporte a PT-BR (default) e EN-US no frontend.
 
 ---
 

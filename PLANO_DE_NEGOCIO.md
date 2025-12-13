@@ -66,6 +66,10 @@ Para tornar o sistema comercializável e robusto, faltam os seguintes pontos té
     -   Integrar com uma API de notas fiscais (ex: FocusNFe, eNotas) para emitir notas de verdade.
 5.  **Aprovação & Execução:** Cliente aprova, e o sistema gera as Ordens de Serviço individuais para cada terceirizado, mantendo a gestão centralizada.
 
+6.  **Internacionalização (i18n):**
+    -   Suporte nativo a Português (BR) e Inglês (EN) para permitir expansão futura.
+    -   Frontend preparado para múltiplos idiomas via biblioteca i18n.
+
 ### B. Melhorias Técnicas
 1.  **Autenticação e Perfis de Acesso**:
     -   Definir permissões granulares: "Mecânico" só vê suas O.S., "Gerente" vê financeiro, "Recepcionista" só agendamento.
