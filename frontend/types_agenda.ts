@@ -65,6 +65,7 @@ export interface Service {
     observations: string;
     scheduledDate?: string; // Format YYYY-MM-DD
     scheduledPeriod?: Period;
+    osStatusLabel?: string; // New: To show the real OS status (e.g. "Aprovado", "Em Orçamento")
 
     defaultTechnicianId?: string; // The main tech assigned
 

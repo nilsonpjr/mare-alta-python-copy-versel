@@ -134,9 +134,16 @@ const ServiceCard: React.FC<ServiceCardProps> = ({
                     <span className="truncate max-w-[80px] print:max-w-none font-medium text-gray-900">{service.location}</span>
                 </div>
                 {!isDone && !isPrintMode && (
-                    <span className={`text-[9px] uppercase font-bold px-1 py-0.5 rounded border ${getPriorityColor(service.priority)}`}>
-                        {service.priority}
-                    </span>
+                    <div className="flex gap-1">
+                        {service.osStatusLabel && (
+                            <span className="text-[9px] uppercase font-bold px-1 py-0.5 rounded border bg-purple-50 text-purple-700 border-purple-200">
+                                {service.osStatusLabel}
+                            </span>
+                        )}
+                        <span className={`text-[9px] uppercase font-bold px-1 py-0.5 rounded border ${getPriorityColor(service.priority)}`}>
+                            {service.priority}
+                        </span>
+                    </div>
                 )}
             </div>
         </div>
@@ -285,6 +292,7 @@ export function ScheduleView() {
                     scheduledPeriod: Period.MORNING, // Default
                     defaultTechnicianId: '1', // Default assigned to Carlos
                     createdAt: new Date(order.createdAt).getTime(),
+                    osStatusLabel: order.status, // Populate status label
                     customAllocations: {} // Not supported in backend yet
                 } as Service;
             });
@@ -502,20 +510,27 @@ export function ScheduleView() {
                 >
                     <div className="p-3 border-b border-gray-200 bg-gray-200 md:rounded-t-xl flex justify-between items-center sticky top-0 z-10">
                         <span className="font-bold text-gray-700 flex items-center text-sm">
-                            <AlertCircle className="w-4 h-4 mr-2" /> A Agendar
+                            <AlertCircle className="w-4 h-4 mr-2" /> Ordens em Aberto
                         </span>
                         <span className="bg-gray-300 text-gray-600 text-xs px-2 py-0.5 rounded-full">{backlog.length}</span>
                     </div>
                     <div className="p-2 overflow-y-auto flex-1 bg-gray-100">
-                        {backlog.map(service => (
-                            <ServiceCard
-                                key={service.id}
-                                service={service}
-                                onDragStart={handleDragStart}
-                                onClick={setSelectedService}
-                                technician={techs.find(t => t.id === service.defaultTechnicianId)}
-                            />
-                        ))}
+                        {backlog.length === 0 ? (
+                            <div className="flex flex-col items-center justify-center h-40 text-gray-400 text-center p-4">
+                                <ClipboardList className="w-8 h-8 mb-2 opacity-50" />
+                                <span className="text-xs italic">Nenhuma ordem pendente para agendamento.</span>
+                            </div>
+                        ) : (
+                            backlog.map(service => (
+                                <ServiceCard
+                                    key={service.id}
+                                    service={service}
+                                    onDragStart={handleDragStart}
+                                    onClick={setSelectedService}
+                                    technician={techs.find(t => t.id === service.defaultTechnicianId)}
+                                />
+                            ))
+                        )}
                     </div>
                 </div>
 
